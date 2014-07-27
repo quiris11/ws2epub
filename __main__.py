@@ -76,6 +76,14 @@ def main():
     remove_node(tree.xpath('//body')[0])
     tree.xpath('//html')[0].append(etree.Element('head'))
     tree.xpath('//head')[0].append(title)
+    tree.xpath('//head')[0].append(etree.fromstring(
+        '<style type="text/css"> \
+        .center { display: table; margin: 0 auto; } \
+        .center * {text-align: center;} \
+        p { text-align: justify; margin: 0; text-indent: 1.2em; } \
+        h1, h2, h3, h4, h5, h6 {text-align: center;} \
+        </style>'
+    ))
     tree.xpath('//html')[0].append(etree.Element('body'))
     tree.xpath('//body')[0].append(book)
     for s in tree.xpath('//table[@class="infobox"]'):
@@ -88,16 +96,16 @@ def main():
         remove_node(s)
     for s in tree.xpath('//span[@class="mw-editsection"]'):
         remove_node(s)
+    for s in tree.xpath('//div[@class="magnify"]'):
+        remove_node(s)
     for s in tree.xpath('//noscript'):
         remove_node(s)
     # for s in tree.xpath('//a[@href="/wiki/Plik:PD-icon.svg"]'):
         # remove_node(s)
     for s in tree.xpath('//hr'):
         try:
-            w = s.attrib['width']
-            print(w)
+            s.attrib['style'] = 'width: ' + s.attrib['width'] + 'px'
             del s.attrib['width']
-            s.attrib['style'] = 'width: ' + w + 'px'
         except:
             pass
     for s in tree.xpath('//img'):
@@ -145,6 +153,20 @@ def main():
     bs = bs.replace('href="/wiki', 'href="https://pl.wikisource.org/wiki')
     bs = bs.replace('src="//upload', 'src="https://upload')
     bs = bs.replace('<html>', '<html xmlns="http://www.w3.org/1999/xhtml">')
+    bs = bs.replace('<center>', '<div class="center">')
+    bs = bs.replace('</center>', '</div>')
+    bs = bs.replace('<p>', '<div class="para">')
+    bs = bs.replace('</p>', '</div>')
+    bs = re.sub(
+        r'\n<div class="para"><span style="padding-left:18px; text-align:left;">.+</span>(.+)<br/>',
+        r'\n<div class="para"><p>\1</p>',
+        bs
+    )
+    bs = re.sub(
+        r'\n<span style="padding-left:18px; text-align:left;">.+</span>(.+)<br/>',
+        r'\n<p>\1</p>',
+        bs
+    )
     with open("text.html", "w") as text_file:
         text_file.write(bs)
     # print(etree.tostring(tree))

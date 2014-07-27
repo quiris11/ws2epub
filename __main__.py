@@ -20,7 +20,8 @@ import urllib2
 import re
 
 from lxml import etree
-
+DTD = ('<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" '
+       '"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">')
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-V', '--version', action='version',
@@ -29,7 +30,25 @@ parser.add_argument("url", help="URL to WS book")
 args = parser.parse_args()
 
 
+def remove_node(node):
+    parent = node.getparent()
+    index = parent.index(node)
+    if node.tail is not None:
+        if index == 0:
+            try:
+                parent.text += node.tail
+            except TypeError:
+                parent.text = node.tail
+        else:
+            try:
+                parent[index - 1].tail += node.tail
+            except TypeError:
+                parent[index - 1].tail = node.tail
+    parent.remove(node)
+
+
 def main():
+
     cf = urllib2.urlopen(args.url)
     # doc = html.parse(content)
     content = cf.read()
@@ -45,32 +64,89 @@ def main():
     tree = etree.fromstring(content)
 
     # print(content.read())
-
     # alltexts = tree.xpath('//body//text()')
-    for s in tree.xpath('//script'):
-        s.getparent().remove(s)
     # alltext = ' '.join(alltexts)
     # print(alltext)
-    for s in tree.xpath('//div[@id="mw-navigation"]'):
-        s.getparent().remove(s)
-    for s in tree.xpath('//div[@id="catlinks"]'):
-        s.getparent().remove(s)
-    for s in tree.xpath('//div[@id="footer"]'):
-        s.getparent().remove(s)
-    for s in tree.xpath('//div[@id="Template_law"]'):
-        s.getparent().remove(s)
-    # for s in tree.xpath('//img[@alt="Przypis własny Wikiźródeł"]'):
-        # s.getparent().remove(s)
-    # for s in tree.xpath('//a[@href="/wiki/Pomoc:Przypisy"]'):
-        # s.getparent().remove(s)
+    book = tree.xpath('//div[@id="mw-content-text"]')[0]
+    title = tree.xpath('//title')[0]
+    del tree.xpath('//html')[0].attrib['lang']
+    del tree.xpath('//html')[0].attrib['dir']
+    del tree.xpath('//html')[0].attrib['class']
+    remove_node(tree.xpath('//head')[0])
+    remove_node(tree.xpath('//body')[0])
+    tree.xpath('//html')[0].append(etree.Element('head'))
+    tree.xpath('//head')[0].append(title)
+    tree.xpath('//html')[0].append(etree.Element('body'))
+    tree.xpath('//body')[0].append(book)
+    for s in tree.xpath('//table[@class="infobox"]'):
+        remove_node(s)
+    for s in tree.xpath('//comment()'):
+        remove_node(s)
+    for s in tree.xpath('//a[@href="/wiki/Pomoc:Przypisy"]'):
+        remove_node(s)
     for s in tree.xpath('//span/span[@class="PageNumber"]'):
-        s.getparent().remove(s)
-    with open("raw-changed.html", "w") as text_file:
-        text_file.write(etree.tostring(
-            tree,
-            pretty_print=True,
-            xml_declaration=True, encoding='utf-8', standalone=False
-        ))
+        remove_node(s)
+    for s in tree.xpath('//span[@class="mw-editsection"]'):
+        remove_node(s)
+    for s in tree.xpath('//noscript'):
+        remove_node(s)
+    # for s in tree.xpath('//a[@href="/wiki/Plik:PD-icon.svg"]'):
+        # remove_node(s)
+    for s in tree.xpath('//hr'):
+        try:
+            w = s.attrib['width']
+            print(w)
+            del s.attrib['width']
+            s.attrib['style'] = 'width: ' + w + 'px'
+        except:
+            pass
+    for s in tree.xpath('//img'):
+        try:
+            del s.attrib['srcset']
+        except:
+            pass
+        try:
+            del s.attrib['data-file-width']
+        except:
+            pass
+        try:
+            del s.attrib['data-file-height']
+        except:
+            pass
+    # for s in tree.xpath('//script'):
+    #     remove_node(s)
+    # # for s in tree.xpath('//div[@id="content"]'):
+    #     # remove_node(s)
+    # for s in tree.xpath('//div[@id="mw-head-base"]'):
+    #     remove_node(s)
+    # for s in tree.xpath('//div[@id="mw-page-base"]'):
+    #     remove_node(s)
+    # for s in tree.xpath('//div[@id="mw-navigation"]'):
+    #     remove_node(s)
+    # for s in tree.xpath('//div[@id="catlinks"]'):
+    #     remove_node(s)
+    # for s in tree.xpath('//div[@id="footer"]'):
+    #     remove_node(s)
+    # for s in tree.xpath('//div[@id="Template_law"]'):
+    #     remove_node(s)
+    # for s in tree.xpath('//div[@class="printfooter"]'):
+    #     remove_node(s)
+    # for s in tree.xpath('//div[@class="visualClear"]'):
+    #     remove_node(s)
+    # # for s in tree.xpath('//img[@alt="Przypis własny Wikiźródeł"]'):
+    #     # remove_node(s)
+    bs = etree.tostring(
+        tree,
+        pretty_print=True,
+        xml_declaration=True, encoding='utf-8', standalone=False, doctype=DTD
+    )
+    bs = bs.replace('<span/>', '')
+    bs = bs.replace('href="#', 'href="text.html#')
+    bs = bs.replace('href="/wiki', 'href="https://pl.wikisource.org/wiki')
+    bs = bs.replace('src="//upload', 'src="https://upload')
+    bs = bs.replace('<html>', '<html xmlns="http://www.w3.org/1999/xhtml">')
+    with open("text.html", "w") as text_file:
+        text_file.write(bs)
     # print(etree.tostring(tree))
     if len(sys.argv) == 1:
         print("* * *")

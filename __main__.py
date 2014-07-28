@@ -19,9 +19,12 @@ import sys
 import urllib2
 import re
 import os
+import zipfile
+import unicodedata
 from urllib import urlretrieve
 
 from lxml import etree
+SFENC = sys.getfilesystemencoding()
 DTD = ('<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" '
        '"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">')
 
@@ -30,6 +33,24 @@ parser.add_argument('-V', '--version', action='version',
                     version="%(prog)s (version " + __version__ + ")")
 parser.add_argument("url", help="URL to WS book")
 args = parser.parse_args()
+
+
+def pack_epub(output_filename, source_dir):
+    with zipfile.ZipFile(output_filename, "w") as zip:
+        zip.writestr("mimetype", "application/epub+zip")
+    relroot = source_dir
+    with zipfile.ZipFile(output_filename, "a", zipfile.ZIP_DEFLATED) as zip:
+        for root, dirs, files in os.walk(source_dir):
+            for file in files:
+                filename = os.path.join(root, file)
+                if os.path.isfile(filename):
+                    arcname = os.path.join(os.path.relpath(root, relroot),
+                                           file)
+                    if sys.platform == 'darwin':
+                        arcname = unicodedata.normalize(
+                            'NFC', unicode(arcname, 'utf-8')
+                        ).encode('utf-8')
+                    zip.write(filename, arcname.decode(SFENC))
 
 
 def remove_node(node):

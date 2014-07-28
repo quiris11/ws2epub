@@ -53,12 +53,21 @@ def download_images(tree):
     num = 1
     for i in tree.xpath('//img'):
         filext = os.path.splitext(i.get('src').split("/")[-1])[1]
-        print(filext)
         urlretrieve('https:' + i.get('src'), os.path.join('WSepub',
                                                           'Images',
                                                           str(num) + filext))
         i.attrib['src'] = '../Images/' + str(num) + filext
         num += 1
+
+
+def create_link_css():
+    css = '.center { display: table; margin: 0 auto; }\n' \
+        '.center * {text-align: center;}\n' \
+        'p { text-align: justify; margin: 0; text-indent: 1.2em; }\n' \
+        'h1, h2, h3, h4, h5, h6 {text-align: center;}\n'
+
+    with open("WSepub/Styles/style.css", "w") as text_file:
+        text_file.write(css)
 
 
 def main():
@@ -98,12 +107,7 @@ def main():
     tree.xpath('//html')[0].append(etree.Element('head'))
     tree.xpath('//head')[0].append(title)
     tree.xpath('//head')[0].append(etree.fromstring(
-        '<style type="text/css"> \
-        .center { display: table; margin: 0 auto; } \
-        .center * {text-align: center;} \
-        p { text-align: justify; margin: 0; text-indent: 1.2em; } \
-        h1, h2, h3, h4, h5, h6 {text-align: center;} \
-        </style>'
+        '<link rel="stylesheet" type="text/css" href="../Styles/style.css" />'
     ))
     tree.xpath('//html')[0].append(etree.Element('body'))
     tree.xpath('//body')[0].append(book)
@@ -165,6 +169,7 @@ def main():
     # # for s in tree.xpath('//img[@alt="Przypis własny Wikiźródeł"]'):
     #     # remove_node(s)
     download_images(tree)
+    create_link_css()
     bs = etree.tostring(
         tree,
         pretty_print=True,

@@ -61,11 +61,17 @@ def download_images(tree):
 
 
 def create_link_css():
-    css = '.center { display: table; margin: 0 auto; }\n' \
-        '.center * {text-align: center;}\n' \
+    css = '.small { font-size: 94%; }\n' \
+        '.thumbcaption {text-align:center;font-size:90%;font-style:italic;}\n'\
+        '.tright { float: right; clear: right; margin: 0.5em 0 0.5em 1em; }\n'\
+        '.tleft { float: left; clear: left; margin: 0.5em 1em 0.5em 0; }\n' \
+        '.poem { display: table; margin: 0 auto; }\n' \
+        '.center { display: table; margin: 0 auto; }\n' \
+        '.center, .center * {text-align: center;}\n' \
         'p { text-align: justify; margin: 0; text-indent: 1.2em; }\n' \
         'h1, h2, h3, h4, h5, h6 {text-align: center;}\n'
-
+    # '.center { width : 100%; text-align: center; }\n' \
+    # '.center * { margin-left: auto; margin-right: auto; }\n' \
     with open("WSepub/Styles/style.css", "w") as text_file:
         text_file.write(css)
 
@@ -125,8 +131,15 @@ def main():
         remove_node(s)
     for s in tree.xpath('//noscript'):
         remove_node(s)
-    # for s in tree.xpath('//a[@href="/wiki/Plik:PD-icon.svg"]'):
-        # remove_node(s)
+    for s in tree.xpath(
+        '//div[@id="Template_law"]/div/div[@style="float: left;"]'
+    ):
+        remove_node(s)
+    for s in tree.xpath('//a[@class="image"]/img'):
+        at = s
+        app = s.getparent().getparent()
+        remove_node(s.getparent())
+        app.insert(0, at)
     for s in tree.xpath('//hr'):
         try:
             s.attrib['style'] = 'width: ' + s.attrib['width'] + 'px'
@@ -183,6 +196,11 @@ def main():
     bs = bs.replace('<center>', '<div class="center">')
     bs = bs.replace('</center>', '</div>')
     bs = bs.replace('<p>', '<div class="para">')
+    bs = re.sub(
+        r'<p (.+?)>',
+        r'<div \1>',
+        bs
+    )
     bs = bs.replace('</p>', '</div>')
     bs = re.sub(
         r'\n<div class="para">'
@@ -195,6 +213,10 @@ def main():
         '(.+)<br/>',
         r'\n<p>\1</p>',
         bs
+    )
+    bs = bs.replace(
+        'id="Template_law" class="toccolours" style="border-width:1px 0 0 0"',
+        'class="Template_law"'
     )
     with open("WSepub/Text/text.html", "w") as text_file:
         text_file.write(bs)

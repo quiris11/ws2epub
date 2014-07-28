@@ -18,6 +18,8 @@ import argparse
 import sys
 import urllib2
 import re
+import os
+from urllib import urlretrieve
 
 from lxml import etree
 DTD = ('<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" '
@@ -47,18 +49,37 @@ def remove_node(node):
     parent.remove(node)
 
 
-def main():
+def download_images(tree):
+    num = 1
+    for i in tree.xpath('//img'):
+        filext = os.path.splitext(i.get('src').split("/")[-1])[1]
+        print(filext)
+        urlretrieve('https:' + i.get('src'), os.path.join('WSepub',
+                                                          'Images',
+                                                          str(num) + filext))
+        i.attrib['src'] = '../Images/' + str(num) + filext
+        num += 1
 
+
+def main():
+    if not os.path.isdir('WSepub'):
+        os.makedirs('WSepub')
+    if not os.path.isdir(os.path.join('WSepub', 'Text')):
+        os.makedirs(os.path.join('WSepub', 'Text'))
+    if not os.path.isdir(os.path.join('WSepub', 'Images')):
+        os.makedirs(os.path.join('WSepub', 'Images'))
+    if not os.path.isdir(os.path.join('WSepub', 'Styles')):
+        os.makedirs(os.path.join('WSepub', 'Styles'))
     cf = urllib2.urlopen(args.url)
     # doc = html.parse(content)
     content = cf.read()
-    with open("raw.txt", "w") as text_file:
-        text_file.write(content)
+    # with open("raw.txt", "w") as text_file:
+    #     text_file.write(content)
     content = re.sub(r'(\s+[a-z0-9]+)=([\'|\"]{0})([a-z0-9]+)([\'|\"]{0})',
                      r'\1="\3"',
                      content)
-    with open("raw-changed.txt", "w") as text_file:
-        text_file.write(content)
+    # with open("raw-changed.txt", "w") as text_file:
+    #     text_file.write(content)
     # parser = etree.XMLParser(recover=True)
     # doc = etree.parse(content, parser)
     tree = etree.fromstring(content)
@@ -143,6 +164,7 @@ def main():
     #     remove_node(s)
     # # for s in tree.xpath('//img[@alt="Przypis własny Wikiźródeł"]'):
     #     # remove_node(s)
+    download_images(tree)
     bs = etree.tostring(
         tree,
         pretty_print=True,
@@ -158,16 +180,18 @@ def main():
     bs = bs.replace('<p>', '<div class="para">')
     bs = bs.replace('</p>', '</div>')
     bs = re.sub(
-        r'\n<div class="para"><span style="padding-left:18px; text-align:left;">.+</span>(.+)<br/>',
+        r'\n<div class="para">'
+        '<span style="padding-left:18px; text-align:left;">.+</span>(.+)<br/>',
         r'\n<div class="para"><p>\1</p>',
         bs
     )
     bs = re.sub(
-        r'\n<span style="padding-left:18px; text-align:left;">.+</span>(.+)<br/>',
+        r'\n<span style="padding-left:18px; text-align:left;">.+</span>'
+        '(.+)<br/>',
         r'\n<p>\1</p>',
         bs
     )
-    with open("text.html", "w") as text_file:
+    with open("WSepub/Text/text.html", "w") as text_file:
         text_file.write(bs)
     # print(etree.tostring(tree))
     if len(sys.argv) == 1:

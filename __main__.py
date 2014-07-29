@@ -22,8 +22,11 @@ import os
 import zipfile
 import unicodedata
 import shutil
+from StringIO import StringIO
 from urllib import unquote
 from urllib import urlretrieve
+from cover import DefaultEbookCover
+
 
 from lxml import etree
 SFENC = sys.getfilesystemencoding()
@@ -85,6 +88,16 @@ def remove_node(node):
             except TypeError:
                 parent[index - 1].tail = node.tail
     parent.remove(node)
+
+
+def generate_cover(bauthor, btitle):
+    cover = DefaultEbookCover
+    cover_file = StringIO()
+    bound_cover = cover(bauthor, btitle)
+    bound_cover.save(cover_file)
+    with open(os.path.join("WSepub/OPS/Images/cover.jpg"), "w") as coverf:
+        coverf.write(cover_file.getvalue())
+    # zip.writestr(os.path.join('OPS', cover_name), cover_file.getvalue())
 
 
 def download_images(tree, btitle, bauthor):
@@ -306,8 +319,7 @@ def main():
     )
     with open(os.path.join("WSepub/OPS/Text/text.xhtml"), "w") as text_file:
         text_file.write(bs)
-    # print(etree.tostring(tree))
-
+    generate_cover(bauthor, btitle)
     pack_epub(bauthor + ' - ' + btitle + '.epub', 'WSepub')
     if len(sys.argv) == 1:
         print("* * *")

@@ -1,0 +1,36 @@
+.center,.center *,h1,h2,h3,h4,h5,h6 {
+text-align:center;
+}
+
+.poem,.center {
+display:table;
+margin:0 auto;
+}
+
+.small {
+font-size:94%;
+}
+
+.thumbcaption {
+font-size:90%;
+font-style:italic;
+text-align:center;
+}
+
+.tleft {
+clear:left;
+float:left;
+margin:.5em 1em .5em 0;
+}
+
+.tright {
+clear:right;
+float:right;
+margin:.5em 0 .5em 1em;
+}
+
+p {
+margin:0;
+text-align:justify;
+text-indent:1.2em;
+}

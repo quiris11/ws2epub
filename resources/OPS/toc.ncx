@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE ncx PUBLIC "-//NISO//DTD ncx 2005-1//EN" "http://www.daisy.org/z3986/2005/ncx-2005-1.dtd">
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+   <head>
+      <meta name="dtb:uid" content="#URL#" />
+   </head>
+   <docTitle>
+      <text>#TYTUL#</text>
+   </docTitle>
+   <docAuthor>
+      <text>#AUTOR#</text>
+   </docAuthor>
+   <navMap>
+      <navPoint id="cover">
+         <navLabel>
+            <text>Okładka</text>
+         </navLabel>
+         <content src="Text/cover.xhtml" />
+      </navPoint>
+      <navPoint id="text">
+         <navLabel>
+            <text>Tekst</text>
+         </navLabel>
+         <content src="Text/text.xhtml" />
+      </navPoint>
+            <navPoint id="info">
+         <navLabel>
+            <text>Strona redakcyjna</text>
+         </navLabel>
+         <content src="Text/info.xhtml" />
+      </navPoint>
+      <navPoint id="toc">
+         <navLabel>
+            <text>Spis treści</text>
+         </navLabel>
+         <content src="Text/toc.xhtml" />
+      </navPoint>
+   </navMap>
+</ncx>

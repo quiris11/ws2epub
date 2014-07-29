@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="uid" version="2.0">
+   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:opf="http://www.idpf.org/2007/opf">
+      <dc:identifier id="uid" opf:scheme="URI">#URL#</dc:identifier>
+      <dc:language>pl</dc:language>
+      <dc:creator opf:file-as="#AUTOR_INV#" opf:role="aut">#AUTOR#</dc:creator>
+      <dc:title>#TYTUL#</dc:title>
+      <dc:source>#URL#</dc:source>
+      <dc:date opf:event="ops-publication">2014-07-29</dc:date>
+      <dc:rights>http://creativecommons.org/licenses/by-sa/3.0/</dc:rights>
+      <dc:contributor opf:role="bkp">Wikisource</dc:contributor>
+      <dc:publisher>Robert Błaut</dc:publisher>
+      <meta name="cover" content="cover" />
+   </metadata>
+   <manifest>
+      <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml" />
+      <item id="style" href="Styles/style.css" media-type="text/css" />
+      <item id="cover" href="Text/cover.xhtml" media-type="application/xhtml+xml" />
+      <item id="info" href="Text/info.xhtml" media-type="application/xhtml+xml" />
+      <item id="text" href="Text/text.xhtml" media-type="application/xhtml+xml" />
+      <item id="cover" href="Images/cover.jpg" media-type="image/jpeg" />
+   </manifest>
+   <spine toc="ncx">
+      <itemref idref="cover"/>
+      <itemref idref="info"/>
+      <itemref idref="text"/>
+   </spine>
+   <guide>
+      <reference type="cover" title="Cover" href="Text/cover.xhtml" />
+      <reference type="copyright-page" title="Info" href="Text/info.xhtml" />
+      <reference type="text" title="Text" href="Text/text.xhtml" />
+   </guide>
+</package>

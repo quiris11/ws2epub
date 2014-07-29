@@ -6,6 +6,10 @@ text-align:center;
 margin:0 auto;
 }
 
+.center table {
+display:inline-table;
+}
+
 .small {
 font-size:94%;
 }

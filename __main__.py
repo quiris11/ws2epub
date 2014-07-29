@@ -97,7 +97,6 @@ def generate_cover(bauthor, btitle):
     bound_cover.save(cover_file)
     with open(os.path.join("WSepub/OPS/Images/cover.jpg"), "w") as coverf:
         coverf.write(cover_file.getvalue())
-    # zip.writestr(os.path.join('OPS', cover_name), cover_file.getvalue())
 
 
 def download_images(tree, btitle, bauthor):
@@ -112,6 +111,12 @@ def download_images(tree, btitle, bauthor):
     opftree.xpath('//dc:identifier', namespaces=DCNS)[0].text = url
     opftree.xpath('//dc:title', namespaces=DCNS)[0].text = btitle
     opftree.xpath('//dc:creator', namespaces=DCNS)[0].text = bauthor
+    lauthor = bauthor.split(' ')
+    bauthorinv = lauthor[-1] + ', ' + ' '.join(lauthor[:-1])
+    opftree.xpath(
+        '//dc:creator',
+        namespaces=DCNS
+    )[0].attrib['{http://www.idpf.org/2007/opf}file-as'] = bauthorinv
     ncxtree.xpath(
         '//ncx:meta', namespaces=NCXNS
     )[0].attrib['content'] = url
@@ -137,6 +142,24 @@ def download_images(tree, btitle, bauthor):
                 standalone=False, xml_declaration=True, encoding='utf-8'))
     with open(os.path.join('WSepub/OPS/toc.ncx'), 'w') as f:
         f.write(etree.tostring(ncxtree.getroot(), pretty_print=True,
+                standalone=False, xml_declaration=True, encoding='utf-8'))
+
+
+def move_law(tree):
+    parser = etree.XMLParser(remove_blank_text=True)
+    infotree = etree.parse(os.path.join('WSepub/OPS/Text/info.xhtml'), parser)
+    for l in tree.xpath('//xhtml:div[@class="Template_law"]',
+                        namespaces=XHTMLNS):
+        infotree.xpath('//xhtml:div[@id="law"]',
+                       namespaces=XHTMLNS)[0].append(l)
+    for l in infotree.xpath('//xhtml:div[@class="Template_law"]/xhtml:div',
+                            namespaces=XHTMLNS):
+        del l.attrib['style']
+    for l in tree.xpath('//xhtml:div[@class="Template_law"]',
+                        namespaces=XHTMLNS):
+        remove_node(l)
+    with open(os.path.join('WSepub/OPS/Text/info.xhtml'), 'w') as f:
+        f.write(etree.tostring(infotree.getroot(), pretty_print=True,
                 standalone=False, xml_declaration=True, encoding='utf-8'))
 
 
@@ -217,7 +240,8 @@ def main():
 
     for s in tree.xpath('//hr'):
         try:
-            s.attrib['style'] = 'width: ' + s.attrib['width'] + 'px'
+            s.attrib['style'] = 'width: ' + str(int(s.attrib['width'])/4) + \
+                '%; margin-left:' + str((100-int(s.attrib['width'])/4)/2) + '%'
             del s.attrib['width']
         except:
             pass
@@ -259,6 +283,10 @@ def main():
         r'\1</a></sup>',
         bs
     )
+    bs = bs.replace(
+        'id="Template_law" class="toccolours" style="border-width:1px 0 0 0"',
+        'class="Template_law"'
+    )
     bs = bs.replace('</p>', '</div>')
     tree = etree.fromstring(bs)
     for s in tree.xpath(
@@ -289,6 +317,7 @@ def main():
                 '<br/>'
             ))
             remove_node(s.getparent()[s.getparent().index(s)+1])
+    move_law(tree)
     bs = etree.tostring(
         tree,
         pretty_print=True,
@@ -312,10 +341,6 @@ def main():
         '(.+)\n\n(.+)<br/>',
         r'\n<p>\1\2</p>',
         bs
-    )
-    bs = bs.replace(
-        'id="Template_law" class="toccolours" style="border-width:1px 0 0 0"',
-        'class="Template_law"'
     )
     with open(os.path.join("WSepub/OPS/Text/text.xhtml"), "w") as text_file:
         text_file.write(bs)

@@ -99,8 +99,6 @@ def download_images(tree, btitle, bauthor):
     opftree.xpath('//dc:identifier', namespaces=DCNS)[0].text = url
     opftree.xpath('//dc:title', namespaces=DCNS)[0].text = btitle
     opftree.xpath('//dc:creator', namespaces=DCNS)[0].text = bauthor
-    # print(etree.tostring(ncxtree.xpath('//ncx:docTitle/ncx:text', namespaces=NCXNS)[0]))
-    # sys.exit()
     ncxtree.xpath(
         '//ncx:meta', namespaces=NCXNS
     )[0].attrib['content'] = url
@@ -190,7 +188,10 @@ def main():
     for s in tree.xpath('//noscript'):
         remove_node(s)
     for s in tree.xpath('//div[@class="refsection"]'):
-        del s.attrib['style']
+        try:
+            del s.attrib['style']
+        except:
+            pass
     for s in tree.xpath(
         '//div[@id="Template_law"]/div/div[@style="float: left;"]'
     ):
@@ -247,28 +248,34 @@ def main():
     )
     bs = bs.replace('</p>', '</div>')
     tree = etree.fromstring(bs)
-    # print(tree.xpath('//xhtml:div[@class="thumb tright"]', namespaces=XHTMLNS))
-    for i, s in enumerate(tree.xpath('///xhtml:div[@class="thumb tright"]', namespaces=XHTMLNS)):
-        # print(s.tail)
-        # print(etree.tostring(s.getparent()[s.getparent().index(s)-1]))
-        s.getparent()[s.getparent().index(s)-1].tail = s.getparent()[s.getparent().index(s)-1].tail + s.tail
+    for s in tree.xpath(
+        '//xhtml:div[@class="thumb tright"]', namespaces=XHTMLNS
+    ):
+        s.getparent()[
+            s.getparent().index(s)-1
+        ].tail = s.getparent()[s.getparent().index(s)-1].tail + s.tail
         s.tail = ''
-        # print(s.getparent()[s.getparent().index(s)+1].tag)
-        if s.getparent()[s.getparent().index(s)+1].tag == '{http://www.w3.org/1999/xhtml}br':
-            s.getparent().insert(s.getparent().index(s), etree.fromstring('<br/>'))
+        if s.getparent()[
+            s.getparent().index(s)+1
+        ].tag == '{http://www.w3.org/1999/xhtml}br':
+            s.getparent().insert(s.getparent().index(s), etree.fromstring(
+                '<br/>'
+            ))
             remove_node(s.getparent()[s.getparent().index(s)+1])
-        # s.getparent().insert(s.getparent().index(s)-1, s)
-        # a = tree.xpath('//xhtml:div[@class="thumb tright"][' + str(i+1) + ']/preceding-sibling::xhtml:div', namespaces=XHTMLNS)[-1]
-        # print(etree.tostring(a))
-        # print('#### ', i)
-    # for i, s in enumerate(tree.xpath('//div[@class="thumb tleft"]')):
-    #     a = tree.xpath('//div[@class="thumb tleft"][' + str(i+1) + ']/preceding-sibling::div')[-1]
-    #     print(etree.tostring(a))
-    # for s in tree.xpath('//xhtml:div[@class="thumbcaption"]/xhtml:div', namespaces=XHTMLNS):
-    #     print(etree.tostring(s))
-    #     print(s.text)
-    #     s.getparent().text = s.text
-    #     remove_node(s)
+    for s in tree.xpath(
+        '//xhtml:div[@class="thumb tleft"]', namespaces=XHTMLNS
+    ):
+        s.getparent()[
+            s.getparent().index(s)-1
+        ].tail = s.getparent()[s.getparent().index(s)-1].tail + s.tail
+        s.tail = ''
+        if s.getparent()[
+            s.getparent().index(s)+1
+        ].tag == '{http://www.w3.org/1999/xhtml}br':
+            s.getparent().insert(s.getparent().index(s), etree.fromstring(
+                '<br/>'
+            ))
+            remove_node(s.getparent()[s.getparent().index(s)+1])
     bs = etree.tostring(
         tree,
         pretty_print=True,

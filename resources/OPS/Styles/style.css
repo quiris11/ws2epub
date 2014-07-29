@@ -2,8 +2,7 @@
 text-align:center;
 }
 
-.poem,.center {
-display:table;
+.poem,.center,.poem *,.center *  {
 margin:0 auto;
 }
 

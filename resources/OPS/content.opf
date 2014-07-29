@@ -10,7 +10,7 @@
       <dc:rights>http://creativecommons.org/licenses/by-sa/3.0/</dc:rights>
       <dc:contributor opf:role="bkp">Wikisource</dc:contributor>
       <dc:publisher>Robert Błaut</dc:publisher>
-      <meta name="cover" content="cover" />
+      <meta name="cover" content="coverimg" />
    </metadata>
    <manifest>
       <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml" />
@@ -18,7 +18,7 @@
       <item id="cover" href="Text/cover.xhtml" media-type="application/xhtml+xml" />
       <item id="info" href="Text/info.xhtml" media-type="application/xhtml+xml" />
       <item id="text" href="Text/text.xhtml" media-type="application/xhtml+xml" />
-      <item id="cover" href="Images/cover.jpg" media-type="image/jpeg" />
+      <item id="coverimg" href="Images/cover.jpg" media-type="image/jpeg" />
    </manifest>
    <spine toc="ncx">
       <itemref idref="cover"/>

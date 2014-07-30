@@ -23,7 +23,7 @@ import zipfile
 import unicodedata
 import shutil
 from StringIO import StringIO
-from urllib import unquote
+from urllib import unquote, quote
 from urllib import urlretrieve
 from cover import DefaultEbookCover
 
@@ -40,7 +40,10 @@ NCXNS = {'ncx': 'http://www.daisy.org/z3986/2005/ncx/'}
 parser = argparse.ArgumentParser()
 parser.add_argument('-V', '--version', action='version',
                     version="%(prog)s (version " + __version__ + ")")
-parser.add_argument("url", help="URL to WS book")
+parser.add_argument("-f", "--force",
+                    help="overwrite previously generated epub files",
+                    action="store_true")
+parser.add_argument("url", help="URL to WS book or TXT file with URLs")
 args = parser.parse_args()
 
 
@@ -163,13 +166,79 @@ def move_law(tree):
                 standalone=False, xml_declaration=True, encoding='utf-8'))
 
 
-def main():
+def process_toc(url):
+    url = '/'.join(url.split('/')[:-1])
+    title = url.split('/')[-1]
+    title = quote(title)
+    print('####', title)
+    cf = urllib2.urlopen(url)
+    content = cf.read()
+    content = content.replace('&#160;', ' ')
+    content = re.sub(r'(\s+[a-z0-9]+)=([\'|\"]{0})([a-z0-9]+)([\'|\"]{0})',
+                     r'\1="\3"',
+                     content)
+    tree = etree.fromstring(content)
+    rozlist = []
+    roz_f = True
+    for a in tree.xpath('//a[@href]'):
+        if (a.get('href').startswith('/wiki/' + title + '/') and
+                not a.get('href').endswith('a%C5%82o%C5%9B%C4%87')):
+            roz = a.get('href').split('/')[-1]
+            if not isinstance(unquote(roz), unicode):
+                roz = unquote(roz).decode('utf-8')
+            roz = roz.replace('_', ' ')
+            if not roz_f:
+                rozlist.append(roz)
+            roz_f = False
+    return rozlist
+
+
+def build_toc_ncx(tree, rozlist):
+    parser = etree.XMLParser(remove_blank_text=True)
+    ncxtree = etree.parse(os.path.join('WSepub/OPS/toc.ncx'), parser)
+    num = 1
+    for r in rozlist:
+        num += 1
+        for s in tree.xpath('//xhtml:div[@class="center"]/.',
+                            namespaces=XHTMLNS):
+            if s.text is None:
+                continue
+            if r.lower() in s.text.lower():
+                print(r, s.text)
+                s.getparent().insert(
+                    s.getparent().index(s),
+                    etree.fromstring(
+                        '<div class="wsrozdzial" '
+                        'id="wsrozdzial_' + str(num) + '"/>'
+                    )
+                )
+                break
+        nm = ncxtree.xpath('//ncx:navMap', namespaces=NCXNS)[0]
+        nm.insert(
+            num,
+            etree.fromstring(
+                '<navPoint id="wsrozdzial_' + str(num) + '">'
+                '<navLabel><text>'
+                '' + r + ''
+                '</text></navLabel><content src="Text/text.xhtml#'
+                'wsrozdzial_' + str(num) + '" /></navPoint>'
+            )
+        )
+    tree.xpath('//xhtml:hr[not(@*)]',
+               namespaces=XHTMLNS)[0].attrib['class'] = 'wsrozdzial'
+    with open(os.path.join('WSepub/OPS/toc.ncx'), 'w') as f:
+        f.write(etree.tostring(ncxtree.getroot(), pretty_print=True,
+                standalone=False, xml_declaration=True, encoding='utf-8'))
+
+
+def process_url(url):
+    rozlist = process_toc(url)
     if os.path.exists('WSepub'):
         shutil.rmtree('WSepub')
     shutil.copytree(os.path.join(
         os.path.dirname(os.path.realpath(__file__)),
         'resources'), 'WSepub')
-    cf = urllib2.urlopen(args.url)
+    cf = urllib2.urlopen(url)
     content = cf.read()
     content = content.replace('&#160;', ' ')
     content = re.sub(r'(\s+[a-z0-9]+)=([\'|\"]{0})([a-z0-9]+)([\'|\"]{0})',
@@ -330,6 +399,7 @@ def main():
             ))
             remove_node(s.getparent()[s.getparent().index(s)+1])
     move_law(tree)
+    build_toc_ncx(tree, rozlist)
     bs = etree.tostring(
         tree,
         pretty_print=True,
@@ -360,6 +430,17 @@ def main():
         text_file.write(bs)
     generate_cover(bauthor, btitle)
     pack_epub(bauthor + ' - ' + btitle + '.epub', 'WSepub')
+
+
+def main():
+    if args.url.endswith('.txt'):
+        with open(os.path.join(args.url), 'r') as f:
+            urls = f.read().splitlines()
+        for u in urls:
+            print('Processing: ' + u)
+            process_url(u)
+    else:
+        process_url(args.url)
     if len(sys.argv) == 1:
         print("* * *")
         print("* At least one of above optional arguments is required.")

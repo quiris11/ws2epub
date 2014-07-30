@@ -19,11 +19,11 @@
       </navPoint>
       <navPoint id="text">
          <navLabel>
-            <text>Tekst</text>
+            <text>Strona tytułowa</text>
          </navLabel>
          <content src="Text/text.xhtml" />
       </navPoint>
-            <navPoint id="info">
+      <navPoint id="info">
          <navLabel>
             <text>Strona redakcyjna</text>
          </navLabel>

@@ -196,17 +196,21 @@ def process_toc(url):
 def build_toc_ncx(tree, rozlist):
     parser = etree.XMLParser(remove_blank_text=True)
     ncxtree = etree.parse(os.path.join('WSepub/OPS/toc.ncx'), parser)
-    num = 1
+    num = 0
+    # print(rozlist)
     for r in rozlist:
         num += 1
-        for s in tree.xpath('//xhtml:body/xhtml:div/xhtml:div/xhtml:div/xhtml:div[@class="center"]',
+        # print(r.encode('utf8'))
+        for s in tree.xpath('//xhtml:body/xhtml:div/xhtml:div/xhtml:div'
+                            '/xhtml:div[@class="center"]',
                             namespaces=XHTMLNS):
             a = ''.join(s.itertext())
             # print(num, repr(r.encode('utf8').lower()), repr(a.lower()))
             # if a is None:
             #     continue
             # print(num, repr(r.encode('utf8').lower()), repr(a.lower()))
-            if r.encode('utf8').lower() in a.lower():
+            # print(a.encode('utf8'))
+            if r.lower().encode('utf8') in a.lower().encode('utf8'):
                 print('#', num, r, s.text)
                 s.getparent().insert(
                     s.getparent().index(s),
@@ -218,7 +222,7 @@ def build_toc_ncx(tree, rozlist):
                 break
         nm = ncxtree.xpath('//ncx:navMap', namespaces=NCXNS)[0]
         nm.insert(
-            num,
+            num+1,
             etree.fromstring(
                 '<navPoint id="wsrozdzial_' + str(num) + '">'
                 '<navLabel><text>'
@@ -235,6 +239,27 @@ def build_toc_ncx(tree, rozlist):
     with open(os.path.join('WSepub/OPS/toc.ncx'), 'w') as f:
         f.write(etree.tostring(ncxtree.getroot(), pretty_print=True,
                 standalone=False, xml_declaration=True, encoding='utf-8'))
+
+
+def generate_inline_toc():
+    parser = etree.XMLParser(remove_blank_text=True)
+    ncxtree = etree.parse(os.path.join('WSepub/OPS/toc.ncx'), parser)
+    transform = etree.XSLT(etree.parse(os.path.join(
+        os.path.dirname(os.path.realpath(__file__)),
+        'xsl', 'ncx2end-0.2.xsl'
+    )))
+    result = transform(ncxtree)
+    for h in result.xpath('//xhtml:a', namespaces=XHTMLNS):
+        h.attrib['href'] = h.get('href').replace('Text/', '')
+    with open(os.path.join("WSepub/OPS/Text/toc.xhtml"), "w") as f:
+        f.write(etree.tostring(
+            result,
+            pretty_print=True,
+            xml_declaration=True,
+            standalone=False,
+            encoding="utf-8",
+            doctype=DTD
+        ))
 
 
 def process_url(url):
@@ -406,6 +431,7 @@ def process_url(url):
             remove_node(s.getparent()[s.getparent().index(s)+1])
     move_law(tree)
     build_toc_ncx(tree, rozlist)
+    generate_inline_toc()
     bs = etree.tostring(
         tree,
         pretty_print=True,
@@ -432,6 +458,9 @@ def process_url(url):
     )
     bs = bs.replace('<font', '<span')
     bs = bs.replace('</font>', '</span>')
+    bs = bs.replace('<div id="mw-content-text" lang="pl" dir="ltr" '
+                    'class="mw-content-ltr">',
+                    '<div id="mw-content-text">')
     with open(os.path.join("WSepub/OPS/Text/text.xhtml"), "w") as text_file:
         text_file.write(bs)
     generate_cover(bauthor, btitle)

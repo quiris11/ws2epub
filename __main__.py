@@ -170,32 +170,27 @@ def main():
         os.path.dirname(os.path.realpath(__file__)),
         'resources'), 'WSepub')
     cf = urllib2.urlopen(args.url)
-    # doc = html.parse(content)
     content = cf.read()
-    # with open("raw.txt", "w") as text_file:
-    #     text_file.write(content)
     content = content.replace('&#160;', ' ')
     content = re.sub(r'(\s+[a-z0-9]+)=([\'|\"]{0})([a-z0-9]+)([\'|\"]{0})',
                      r'\1="\3"',
                      content)
-    # with open("raw-changed.txt", "w") as text_file:
-    #     text_file.write(content)
-    # parser = etree.XMLParser(recover=True)
-    # doc = etree.parse(content, parser)
     tree = etree.fromstring(content)
-
-    # print(content.read())
-    # alltexts = tree.xpath('//body//text()')
-    # alltext = ' '.join(alltexts)
-    # print(alltext)
     book = tree.xpath('//div[@id="mw-content-text"]')[0]
-    # bauthor = tree.xpath('//tr[td/text() = "Autor"]/td/a/text()')[0]
-    # tytul = 'Tytuł'.decode('utf-8')
-    # btitle = tree.xpath('//tr[td/text() = "' + tytul + '"]/td/a/text()')[0]
     if tree.xpath('//table[@class="infobox"]/tr[2]/td[1]')[0].text == 'Autor':
-        bauthor = tree.xpath('//table[@class="infobox"]/tr[2]/td[2]/a')[0].text
+        try:
+            bauthor = tree.xpath(
+                '//table[@class="infobox"]/tr[2]/td[2]/a'
+            )[0].text
+        except:
+            sys.exit('ERROR! Unable to find book author!')
     if tree.xpath('//table[@class="infobox"]/tr[3]/td[1]')[0].text == u'Tytuł':
-        btitle = tree.xpath('//table[@class="infobox"]/tr[3]/td[2]/a')[0].text
+        try:
+            btitle = tree.xpath(
+                '//table[@class="infobox"]/tr[3]/td[2]/a'
+            )[0].text
+        except:
+            sys.exit('ERROR! Unable to find book title!')
     title = tree.xpath('//title')[0]
     del tree.xpath('//html')[0].attrib['lang']
     del tree.xpath('//html')[0].attrib['dir']
@@ -228,6 +223,23 @@ def main():
             del s.attrib['style']
         except:
             pass
+    font_size = {'1': '.63em', '2': '.82em', '3': '1em',
+                 '4': '1.13em', '5': '1.5em', '6': '2em', '7': '3em'}
+    for s in tree.xpath('//font'):
+        if s.get('color'):
+            if s.get('style'):
+                s.attrib['style'] = s.attrib['style'] + ';color:' + \
+                    s.attrib['color']
+            else:
+                s.attrib['style'] = 'color:' + s.attrib['color']
+            del s.attrib['color']
+        if s.get('size'):
+            if s.get('style'):
+                s.attrib['style'] = s.attrib['style'] + ';font-size:' + \
+                    font_size[s.attrib['size']]
+            else:
+                s.attrib['style'] = 'font-size:' + font_size[s.attrib['size']]
+            del s.attrib['size']
     for s in tree.xpath(
         '//div[@id="Template_law"]/div/div[@style="float: left;"]'
     ):
@@ -342,6 +354,8 @@ def main():
         r'\n<p>\1\2</p>',
         bs
     )
+    bs = bs.replace('<font', '<span')
+    bs = bs.replace('</font>', '</span>')
     with open(os.path.join("WSepub/OPS/Text/text.xhtml"), "w") as text_file:
         text_file.write(bs)
     generate_cover(bauthor, btitle)

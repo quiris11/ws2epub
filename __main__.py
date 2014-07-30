@@ -131,13 +131,19 @@ def download_images(tree, btitle, bauthor):
     )[0].text = bauthor
     for i in tree.xpath('//img'):
         filext = os.path.splitext(i.get('src').split("/")[-1])[1]
+        if filext == '.jpg':
+            mime = 'image/jpeg'
+        elif filext == '.png':
+            mime = 'image/png'
+        else:
+            sys.exit('ERROR! Unrecognized image extension: ' + filext)
         urlretrieve('https:' + i.get('src'), os.path.join(
             'WSepub', 'OPS', 'Images', 'img_' + str(num) + filext
         ))
         i.attrib['src'] = '../Images/img_' + str(num) + filext
         opfitem = etree.fromstring(
             '<item id="img_%s" href="Images/img_%s%s" media-'
-            'type="image/jpeg"/>' % (num, num, filext))
+            'type="%s"/>' % (num, num, filext, mime))
         manifest.append(opfitem)
         num += 1
     with open(os.path.join('WSepub/OPS/content.opf'), 'w') as f:
@@ -170,7 +176,7 @@ def process_toc(url):
     url = '/'.join(url.split('/')[:-1])
     title = url.split('/')[-1]
     title = quote(title)
-    print('####', title)
+    print('# ', title)
     cf = urllib2.urlopen(url)
     content = cf.read()
     content = content.replace('&#160;', ' ')
@@ -180,8 +186,12 @@ def process_toc(url):
     tree = etree.fromstring(content)
     rozlist = []
     roz_f = True
-    for a in tree.xpath('//a[@href]'):
-        if (a.get('href').startswith('/wiki/' + title + '/') and
+    for a in tree.xpath('//div[@id="mw-content-text"]//a[@href]'):
+        # if ":" not in a.get('href'):
+        #     print('###', a.get('href'))
+        # else:
+        #     print('', a.get('href'))
+        if (":" not in a.get('href') and
                 not a.get('href').endswith('a%C5%82o%C5%9B%C4%87')):
             roz = a.get('href').split('/')[-1]
             if not isinstance(unquote(roz), unicode):
@@ -190,6 +200,7 @@ def process_toc(url):
             if not roz_f:
                 rozlist.append(roz)
             roz_f = False
+    # print(rozlist)
     return rozlist
 
 
@@ -197,21 +208,14 @@ def build_toc_ncx(tree, rozlist):
     parser = etree.XMLParser(remove_blank_text=True)
     ncxtree = etree.parse(os.path.join('WSepub/OPS/toc.ncx'), parser)
     num = 0
-    # print(rozlist)
     for r in rozlist:
         num += 1
-        # print(r.encode('utf8'))
-        for s in tree.xpath('//xhtml:body/xhtml:div/xhtml:div/xhtml:div'
-                            '/xhtml:div[@class="center"]',
+        for s in tree.xpath('//xhtml:body/xhtml:div/xhtml:div//xhtml:div[@class="center"]',
                             namespaces=XHTMLNS):
             a = ''.join(s.itertext())
-            # print(num, repr(r.encode('utf8').lower()), repr(a.lower()))
-            # if a is None:
-            #     continue
-            # print(num, repr(r.encode('utf8').lower()), repr(a.lower()))
-            # print(a.encode('utf8'))
+            # print(a)
             if r.lower().encode('utf8') in a.lower().encode('utf8'):
-                print('#', num, r, s.text)
+                print('#', num, r, a)
                 s.getparent().insert(
                     s.getparent().index(s),
                     etree.fromstring(
@@ -458,6 +462,8 @@ def process_url(url):
     )
     bs = bs.replace('<font', '<span')
     bs = bs.replace('</font>', '</span>')
+    bs = bs.replace('<table align="center">',
+                    '<table style="text-align:center">')
     bs = bs.replace('<div id="mw-content-text" lang="pl" dir="ltr" '
                     'class="mw-content-ltr">',
                     '<div id="mw-content-text">')

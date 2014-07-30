@@ -41,7 +41,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-V', '--version', action='version',
                     version="%(prog)s (version " + __version__ + ")")
 parser.add_argument("-f", "--force",
-                    help="overwrite previously generated epub files",
+                    help="overwrite previously generated EPUB files",
+                    action="store_true")
+parser.add_argument("-a", "--all",
+                    help="create EPUB from 'całość' page",
                     action="store_true")
 parser.add_argument("url", help="URL to WS book or TXT file with URLs")
 args = parser.parse_args()
@@ -153,6 +156,8 @@ def download_images(tree, btitle, bauthor):
         f.write(etree.tostring(ncxtree.getroot(), pretty_print=True,
                 standalone=False, xml_declaration=True, encoding='utf-8'))
 
+write_dc_data(b)
+
 
 def move_law(tree):
     parser = etree.XMLParser(remove_blank_text=True)
@@ -176,7 +181,7 @@ def process_toc(url):
     url = '/'.join(url.split('/')[:-1])
     title = url.split('/')[-1]
     title = quote(title)
-    print('# ', title)
+    # print('# ', title)
     cf = urllib2.urlopen(url)
     content = cf.read()
     content = content.replace('&#160;', ' ')
@@ -185,7 +190,8 @@ def process_toc(url):
                      content)
     tree = etree.fromstring(content)
     rozlist = []
-    roz_f = True
+    for s in tree.xpath('//table[@class="infobox"]'):
+        remove_node(s)
     for a in tree.xpath('//div[@id="mw-content-text"]//a[@href]'):
         # if ":" not in a.get('href'):
         #     print('###', a.get('href'))
@@ -197,9 +203,7 @@ def process_toc(url):
             if not isinstance(unquote(roz), unicode):
                 roz = unquote(roz).decode('utf-8')
             roz = roz.replace('_', ' ')
-            if not roz_f:
-                rozlist.append(roz)
-            roz_f = False
+            rozlist.append(roz)
     # print(rozlist)
     return rozlist
 
@@ -266,13 +270,39 @@ def generate_inline_toc():
         ))
 
 
-def process_url(url):
-    rozlist = process_toc(url)
+def prepare_dir():
     if os.path.exists('WSepub'):
         shutil.rmtree('WSepub')
     shutil.copytree(os.path.join(
         os.path.dirname(os.path.realpath(__file__)),
         'resources'), 'WSepub')
+
+
+def get_dc_data(tree):
+    if tree.xpath(
+        '//table[@class="infobox"]/tr[2]/td[1]'
+    )[0].text == 'Autor':
+        try:
+            bauthor = tree.xpath(
+                '//table[@class="infobox"]/tr[2]/td[2]/a'
+            )[0].text
+        except:
+            sys.exit('ERROR! Unable to find book author!')
+    if tree.xpath(
+        '//table[@class="infobox"]/tr[3]/td[1]'
+    )[0].text == u'Tytuł':
+        try:
+            btitle = tree.xpath(
+                '//table[@class="infobox"]/tr[3]/td[2]/a'
+            )[0].text
+        except:
+            sys.exit('ERROR! Unable to find book title!')
+    return bauthor, btitle
+
+
+def process_url(url, count, met):
+    if met:
+        rozlist = process_toc(url)
     cf = urllib2.urlopen(url)
     content = cf.read()
     content = content.replace('&#160;', ' ')
@@ -280,22 +310,8 @@ def process_url(url):
                      r'\1="\3"',
                      content)
     tree = etree.fromstring(content)
+
     book = tree.xpath('//div[@id="mw-content-text"]')[0]
-    if tree.xpath('//table[@class="infobox"]/tr[2]/td[1]')[0].text == 'Autor':
-        try:
-            bauthor = tree.xpath(
-                '//table[@class="infobox"]/tr[2]/td[2]/a'
-            )[0].text
-        except:
-            sys.exit('ERROR! Unable to find book author!')
-    if tree.xpath('//table[@class="infobox"]/tr[3]/td[1]')[0].text == u'Tytuł':
-        try:
-            btitle = tree.xpath(
-                '//table[@class="infobox"]/tr[3]/td[2]/a'
-            )[0].text
-        except:
-            sys.exit('ERROR! Unable to find book title!')
-    title = tree.xpath('//title')[0]
     del tree.xpath('//html')[0].attrib['lang']
     del tree.xpath('//html')[0].attrib['dir']
     del tree.xpath('//html')[0].attrib['class']
@@ -467,21 +483,36 @@ def process_url(url):
     bs = bs.replace('<div id="mw-content-text" lang="pl" dir="ltr" '
                     'class="mw-content-ltr">',
                     '<div id="mw-content-text">')
-    with open(os.path.join("WSepub/OPS/Text/text.xhtml"), "w") as text_file:
-        text_file.write(bs)
-    generate_cover(bauthor, btitle)
-    pack_epub(bauthor + ' - ' + btitle + '.epub', 'WSepub')
+    return bs, bauthor, btitle
 
 
 def main():
-    if args.url.endswith('.txt'):
-        with open(os.path.join(args.url), 'r') as f:
-            urls = f.read().splitlines()
-        for u in urls:
-            print('Processing: ' + u)
-            process_url(u)
+    if args.all and not args.url.lower().endswith('całość'):
+        sys.exit('ERROR! Provode "całość" url.')
+    prepare_dir()
+    if args.all:
+        if args.url.endswith('.txt'):
+            with open(os.path.join(args.url), 'r') as f:
+                urls = f.read().splitlines()
+            for u in urls:
+                print('Processing: ' + u)
+                bs, bauthor, btitle = process_url(u)
+                with open(os.path.join(
+                    "WSepub/OPS/Text/text.xhtml"
+                ), "w") as text_file:
+                    text_file.write(bs)
+                generate_cover(bauthor, btitle)
+                pack_epub(bauthor + ' - ' + btitle + '.epub', 'WSepub')
+        else:
+            bs, bauthor, btitle = process_url(args.url)
+            with open(os.path.join(
+                "WSepub/OPS/Text/text.xhtml"
+            ), "w") as text_file:
+                text_file.write(bs)
+            generate_cover(bauthor, btitle)
+            pack_epub(bauthor + ' - ' + btitle + '.epub', 'WSepub')
     else:
-        process_url(args.url)
+        process_single_url()
     if len(sys.argv) == 1:
         print("* * *")
         print("* At least one of above optional arguments is required.")

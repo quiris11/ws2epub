@@ -199,12 +199,15 @@ def build_toc_ncx(tree, rozlist):
     num = 1
     for r in rozlist:
         num += 1
-        for s in tree.xpath('//xhtml:div[@class="center"]/.',
+        for s in tree.xpath('//xhtml:body/xhtml:div/xhtml:div/xhtml:div/xhtml:div[@class="center"]',
                             namespaces=XHTMLNS):
-            if s.text is None:
-                continue
-            if r.lower() in s.text.lower():
-                print(r, s.text)
+            a = ''.join(s.itertext())
+            # print(num, repr(r.encode('utf8').lower()), repr(a.lower()))
+            # if a is None:
+            #     continue
+            # print(num, repr(r.encode('utf8').lower()), repr(a.lower()))
+            if r.encode('utf8').lower() in a.lower():
+                print('#', num, r, s.text)
                 s.getparent().insert(
                     s.getparent().index(s),
                     etree.fromstring(
@@ -224,8 +227,11 @@ def build_toc_ncx(tree, rozlist):
                 'wsrozdzial_' + str(num) + '" /></navPoint>'
             )
         )
-    tree.xpath('//xhtml:hr[not(@*)]',
-               namespaces=XHTMLNS)[0].attrib['class'] = 'wsrozdzial'
+    try:
+        tree.xpath('//xhtml:hr[not(@*)]',
+                   namespaces=XHTMLNS)[0].attrib['class'] = 'wsrozdzial'
+    except:
+        pass
     with open(os.path.join('WSepub/OPS/toc.ncx'), 'w') as f:
         f.write(etree.tostring(ncxtree.getroot(), pretty_print=True,
                 standalone=False, xml_declaration=True, encoding='utf-8'))

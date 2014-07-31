@@ -17,12 +17,6 @@
          </navLabel>
          <content src="Text/cover.xhtml" />
       </navPoint>
-      <navPoint id="text">
-         <navLabel>
-            <text>Strona tytułowa</text>
-         </navLabel>
-         <content src="Text/text.xhtml" />
-      </navPoint>
       <navPoint id="info">
          <navLabel>
             <text>Strona redakcyjna</text>

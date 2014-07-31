@@ -16,21 +16,18 @@
       <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml" />
       <item id="style" href="Styles/style.css" media-type="text/css" />
       <item id="cover" href="Text/cover.xhtml" media-type="application/xhtml+xml" />
-      <item id="text" href="Text/text.xhtml" media-type="application/xhtml+xml" />
       <item id="info" href="Text/info.xhtml" media-type="application/xhtml+xml" />
       <item id="toc" href="Text/toc.xhtml" media-type="application/xhtml+xml" />
       <item id="coverimg" href="Images/cover.jpg" media-type="image/jpeg" />
    </manifest>
    <spine toc="ncx">
       <itemref idref="cover"/>
-      <itemref idref="text"/>
       <itemref idref="info"/>
       <itemref idref="toc"/>
    </spine>
    <guide>
       <reference type="cover" title="Cover" href="Text/cover.xhtml" />
       <reference type="copyright-page" title="Info" href="Text/info.xhtml" />
-      <reference type="text" title="Text" href="Text/text.xhtml" />
-      <reference type="toc" title="TOC" href="Text/text.xhtml" />
+      <reference type="toc" title="TOC" href="Text/toc.xhtml" />
    </guide>
 </package>

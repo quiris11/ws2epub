@@ -433,8 +433,6 @@ def regex_tree(tree):
     )
     bs = bs.replace('<font', '<span')
     bs = bs.replace('</font>', '</span>')
-    bs = bs.replace('<table align="center">',
-                    '<table style="text-align:center">')
     bs = bs.replace('<div id="mw-content-text" lang="pl" dir="ltr" '
                     'class="mw-content-ltr">',
                     '<div id="mw-content-text">')

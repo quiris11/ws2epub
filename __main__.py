@@ -251,12 +251,10 @@ def download_images(tree, url):
 
 
 def next_url(tree):
+    nurl = None
     for s in tree.xpath('//table[@class="infobox"]/tr[1]/td[1]//a[@href]'):
-        # print(etree.tostring(s))
         if s.text == '>>>':
             nurl = 'https://pl.wikisource.org' + s.get('href')
-        else:
-            nurl = None
     return nurl
 
 

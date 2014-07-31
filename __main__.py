@@ -41,7 +41,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-V', '--version', action='version',
                     version="%(prog)s (version " + __version__ + ")")
 parser.add_argument("-n", "--no-next",
-                    help="try different method to get book from WS",
+                    help="get book without next link",
+                    action="store_true")
+parser.add_argument("-o", "--other",
+                    help="get other book from WS",
                     action="store_true")
 parser.add_argument("url", help="URL to WS book or TXT file with URLs")
 args = parser.parse_args()

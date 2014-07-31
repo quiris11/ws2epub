@@ -23,7 +23,7 @@ import zipfile
 import unicodedata
 import shutil
 from StringIO import StringIO
-from urllib import unquote, quote
+from urllib import unquote
 from urllib import urlretrieve
 from cover import DefaultEbookCover
 
@@ -50,35 +50,6 @@ parser.add_argument("url", help="URL to WS book or TXT file with URLs")
 args = parser.parse_args()
 
 
-def pack_epub(output_filename, source_dir):
-    the_file = '.DS_Store'
-    try:
-        os.unlink(os.path.join(source_dir, the_file))
-    except:
-        pass
-    for root, dirs, files in os.walk(source_dir):
-        for d in dirs:
-            try:
-                os.unlink(os.path.join(root, d, the_file))
-            except:
-                pass
-    with zipfile.ZipFile(output_filename, "w") as zip:
-        zip.writestr("mimetype", "application/epub+zip")
-    relroot = source_dir
-    with zipfile.ZipFile(output_filename, "a", zipfile.ZIP_DEFLATED) as zip:
-        for root, dirs, files in os.walk(source_dir):
-            for file in files:
-                filename = os.path.join(root, file)
-                if os.path.isfile(filename):
-                    arcname = os.path.join(os.path.relpath(root, relroot),
-                                           file)
-                    if sys.platform == 'darwin':
-                        arcname = unicodedata.normalize(
-                            'NFC', unicode(arcname, 'utf-8')
-                        ).encode('utf-8')
-                    zip.write(filename, arcname.decode(SFENC))
-
-
 def remove_node(node):
     parent = node.getparent()
     index = parent.index(node)
@@ -94,180 +65,6 @@ def remove_node(node):
             except TypeError:
                 parent[index - 1].tail = node.tail
     parent.remove(node)
-
-
-def generate_cover(bauthor, btitle):
-    cover = DefaultEbookCover
-    cover_file = StringIO()
-    bound_cover = cover(bauthor, btitle)
-    bound_cover.save(cover_file)
-    with open(os.path.join("WSepub/OPS/Images/cover.jpg"), "w") as coverf:
-        coverf.write(cover_file.getvalue())
-
-
-def download_images(tree, btitle, bauthor):
-    num = 1
-    parser = etree.XMLParser(remove_blank_text=True)
-    opftree = etree.parse(os.path.join('WSepub/OPS/content.opf'), parser)
-    ncxtree = etree.parse(os.path.join('WSepub/OPS/toc.ncx'), parser)
-    manifest = opftree.xpath('//opf:manifest', namespaces=OPFNS)[0]
-    if not isinstance(unquote(args.url), unicode):
-        url = unquote(args.url).decode('utf-8')
-    opftree.xpath('//dc:source', namespaces=DCNS)[0].text = url
-    opftree.xpath('//dc:identifier', namespaces=DCNS)[0].text = url
-    opftree.xpath('//dc:title', namespaces=DCNS)[0].text = btitle
-    opftree.xpath('//dc:creator', namespaces=DCNS)[0].text = bauthor
-    lauthor = bauthor.split(' ')
-    bauthorinv = lauthor[-1] + ', ' + ' '.join(lauthor[:-1])
-    opftree.xpath(
-        '//dc:creator',
-        namespaces=DCNS
-    )[0].attrib['{http://www.idpf.org/2007/opf}file-as'] = bauthorinv
-    ncxtree.xpath(
-        '//ncx:meta', namespaces=NCXNS
-    )[0].attrib['content'] = url
-    ncxtree.xpath(
-        '//ncx:docTitle/ncx:text', namespaces=NCXNS
-    )[0].text = btitle
-    ncxtree.xpath(
-        '//ncx:docAuthor/ncx:text', namespaces=NCXNS
-    )[0].text = bauthor
-    for i in tree.xpath('//img'):
-        filext = os.path.splitext(i.get('src').split("/")[-1])[1]
-        if filext == '.jpg':
-            mime = 'image/jpeg'
-        elif filext == '.png':
-            mime = 'image/png'
-        else:
-            sys.exit('ERROR! Unrecognized image extension: ' + filext)
-        urlretrieve('https:' + i.get('src'), os.path.join(
-            'WSepub', 'OPS', 'Images', 'img_' + str(num) + filext
-        ))
-        i.attrib['src'] = '../Images/img_' + str(num) + filext
-        opfitem = etree.fromstring(
-            '<item id="img_%s" href="Images/img_%s%s" media-'
-            'type="%s"/>' % (num, num, filext, mime))
-        manifest.append(opfitem)
-        num += 1
-    with open(os.path.join('WSepub/OPS/content.opf'), 'w') as f:
-        f.write(etree.tostring(opftree.getroot(), pretty_print=True,
-                standalone=False, xml_declaration=True, encoding='utf-8'))
-    with open(os.path.join('WSepub/OPS/toc.ncx'), 'w') as f:
-        f.write(etree.tostring(ncxtree.getroot(), pretty_print=True,
-                standalone=False, xml_declaration=True, encoding='utf-8'))
-
-write_dc_data(b)
-
-
-def move_law(tree):
-    parser = etree.XMLParser(remove_blank_text=True)
-    infotree = etree.parse(os.path.join('WSepub/OPS/Text/info.xhtml'), parser)
-    for l in tree.xpath('//xhtml:div[@class="Template_law"]',
-                        namespaces=XHTMLNS):
-        infotree.xpath('//xhtml:div[@id="law"]',
-                       namespaces=XHTMLNS)[0].append(l)
-    for l in infotree.xpath('//xhtml:div[@class="Template_law"]/xhtml:div',
-                            namespaces=XHTMLNS):
-        del l.attrib['style']
-    for l in tree.xpath('//xhtml:div[@class="Template_law"]',
-                        namespaces=XHTMLNS):
-        remove_node(l)
-    with open(os.path.join('WSepub/OPS/Text/info.xhtml'), 'w') as f:
-        f.write(etree.tostring(infotree.getroot(), pretty_print=True,
-                standalone=False, xml_declaration=True, encoding='utf-8'))
-
-
-def process_toc(url):
-    url = '/'.join(url.split('/')[:-1])
-    title = url.split('/')[-1]
-    title = quote(title)
-    # print('# ', title)
-    cf = urllib2.urlopen(url)
-    content = cf.read()
-    content = content.replace('&#160;', ' ')
-    content = re.sub(r'(\s+[a-z0-9]+)=([\'|\"]{0})([a-z0-9]+)([\'|\"]{0})',
-                     r'\1="\3"',
-                     content)
-    tree = etree.fromstring(content)
-    rozlist = []
-    for s in tree.xpath('//table[@class="infobox"]'):
-        remove_node(s)
-    for a in tree.xpath('//div[@id="mw-content-text"]//a[@href]'):
-        # if ":" not in a.get('href'):
-        #     print('###', a.get('href'))
-        # else:
-        #     print('', a.get('href'))
-        if (":" not in a.get('href') and
-                not a.get('href').endswith('a%C5%82o%C5%9B%C4%87')):
-            roz = a.get('href').split('/')[-1]
-            if not isinstance(unquote(roz), unicode):
-                roz = unquote(roz).decode('utf-8')
-            roz = roz.replace('_', ' ')
-            rozlist.append(roz)
-    # print(rozlist)
-    return rozlist
-
-
-def build_toc_ncx(tree, rozlist):
-    parser = etree.XMLParser(remove_blank_text=True)
-    ncxtree = etree.parse(os.path.join('WSepub/OPS/toc.ncx'), parser)
-    num = 0
-    for r in rozlist:
-        num += 1
-        for s in tree.xpath('//xhtml:body/xhtml:div/xhtml:div//xhtml:div[@class="center"]',
-                            namespaces=XHTMLNS):
-            a = ''.join(s.itertext())
-            # print(a)
-            if r.lower().encode('utf8') in a.lower().encode('utf8'):
-                print('#', num, r, a)
-                s.getparent().insert(
-                    s.getparent().index(s),
-                    etree.fromstring(
-                        '<div class="wsrozdzial" '
-                        'id="wsrozdzial_' + str(num) + '"/>'
-                    )
-                )
-                break
-        nm = ncxtree.xpath('//ncx:navMap', namespaces=NCXNS)[0]
-        nm.insert(
-            num+1,
-            etree.fromstring(
-                '<navPoint id="wsrozdzial_' + str(num) + '">'
-                '<navLabel><text>'
-                '' + r + ''
-                '</text></navLabel><content src="Text/text.xhtml#'
-                'wsrozdzial_' + str(num) + '" /></navPoint>'
-            )
-        )
-    try:
-        tree.xpath('//xhtml:hr[not(@*)]',
-                   namespaces=XHTMLNS)[0].attrib['class'] = 'wsrozdzial'
-    except:
-        pass
-    with open(os.path.join('WSepub/OPS/toc.ncx'), 'w') as f:
-        f.write(etree.tostring(ncxtree.getroot(), pretty_print=True,
-                standalone=False, xml_declaration=True, encoding='utf-8'))
-
-
-def generate_inline_toc():
-    parser = etree.XMLParser(remove_blank_text=True)
-    ncxtree = etree.parse(os.path.join('WSepub/OPS/toc.ncx'), parser)
-    transform = etree.XSLT(etree.parse(os.path.join(
-        os.path.dirname(os.path.realpath(__file__)),
-        'xsl', 'ncx2end-0.2.xsl'
-    )))
-    result = transform(ncxtree)
-    for h in result.xpath('//xhtml:a', namespaces=XHTMLNS):
-        h.attrib['href'] = h.get('href').replace('Text/', '')
-    with open(os.path.join("WSepub/OPS/Text/toc.xhtml"), "w") as f:
-        f.write(etree.tostring(
-            result,
-            pretty_print=True,
-            xml_declaration=True,
-            standalone=False,
-            encoding="utf-8",
-            doctype=DTD
-        ))
 
 
 def prepare_dir():
@@ -300,18 +97,115 @@ def get_dc_data(tree):
     return bauthor, btitle
 
 
-def process_url(url, count, met):
-    if met:
-        rozlist = process_toc(url)
-    cf = urllib2.urlopen(url)
-    content = cf.read()
+def generate_cover(bauthor, btitle):
+    cover = DefaultEbookCover
+    cover_file = StringIO()
+    bound_cover = cover(bauthor, btitle)
+    bound_cover.save(cover_file)
+    with open(os.path.join("WSepub/OPS/Images/cover.jpg"), "w") as coverf:
+        coverf.write(cover_file.getvalue())
+
+
+def write_dc_data(bauthor, btitle, url):
+    parser = etree.XMLParser(remove_blank_text=True)
+    opftree = etree.parse(os.path.join('WSepub/OPS/content.opf'), parser)
+    ncxtree = etree.parse(os.path.join('WSepub/OPS/toc.ncx'), parser)
+    if not isinstance(unquote(url), unicode):
+        url = unquote(url).decode('utf-8')
+    opftree.xpath('//dc:source', namespaces=DCNS)[0].text = url
+    opftree.xpath('//dc:identifier', namespaces=DCNS)[0].text = url
+    opftree.xpath('//dc:title', namespaces=DCNS)[0].text = btitle
+    opftree.xpath('//dc:creator', namespaces=DCNS)[0].text = bauthor
+    lauthor = bauthor.split(' ')
+    bauthorinv = lauthor[-1] + ', ' + ' '.join(lauthor[:-1])
+    opftree.xpath(
+        '//dc:creator',
+        namespaces=DCNS
+    )[0].attrib['{http://www.idpf.org/2007/opf}file-as'] = bauthorinv
+    ncxtree.xpath(
+        '//ncx:meta', namespaces=NCXNS
+    )[0].attrib['content'] = url
+    ncxtree.xpath(
+        '//ncx:docTitle/ncx:text', namespaces=NCXNS
+    )[0].text = btitle
+    ncxtree.xpath(
+        '//ncx:docAuthor/ncx:text', namespaces=NCXNS
+    )[0].text = bauthor
+    with open(os.path.join('WSepub/OPS/content.opf'), 'w') as f:
+        f.write(etree.tostring(opftree.getroot(), pretty_print=True,
+                standalone=False, xml_declaration=True, encoding='utf-8'))
+    with open(os.path.join('WSepub/OPS/toc.ncx'), 'w') as f:
+        f.write(etree.tostring(ncxtree.getroot(), pretty_print=True,
+                standalone=False, xml_declaration=True, encoding='utf-8'))
+
+
+def write_law(tree):
+    parser = etree.XMLParser(remove_blank_text=True)
+    infotree = etree.parse(os.path.join('WSepub/OPS/Text/info.xhtml'), parser)
+    for s in tree.xpath(
+        '//div[@id="Template_law"]/div/div[@style="float: left;"]'
+    ):
+        remove_node(s)
+    for l in tree.xpath('//div[@id="Template_law"]'):
+        infotree.xpath('//xhtml:div[@id="law"]',
+                       namespaces=XHTMLNS)[0].append(l)
+    for l in infotree.xpath('//xhtml:div[@id="Template_law"]/xhtml:div',
+                            namespaces=XHTMLNS):
+        del l.attrib['style']
+    with open(os.path.join('WSepub/OPS/Text/info.xhtml'), 'w') as f:
+        f.write(etree.tostring(infotree.getroot(), pretty_print=True,
+                standalone=False, xml_declaration=True, encoding='utf-8'))
+    return tree
+
+
+def url_to_tree(url):
+    content = urllib2.urlopen(url).read()
     content = content.replace('&#160;', ' ')
     content = re.sub(r'(\s+[a-z0-9]+)=([\'|\"]{0})([a-z0-9]+)([\'|\"]{0})',
                      r'\1="\3"',
                      content)
-    tree = etree.fromstring(content)
+    return etree.fromstring(content)
 
+
+def download_images(tree, url):
+    doc = url.split('/')[-1]
+    num = 1
+    parser = etree.XMLParser(remove_blank_text=True)
+    opftree = etree.parse(os.path.join('WSepub/OPS/content.opf'), parser)
+    manifest = opftree.xpath('//opf:manifest', namespaces=OPFNS)[0]
+    for i in tree.xpath('//img'):
+        filext = os.path.splitext(i.get('src').split("/")[-1])[1]
+        if filext == '.jpg':
+            mime = 'image/jpeg'
+        elif filext == '.png':
+            mime = 'image/png'
+        else:
+            sys.exit('ERROR! Unrecognized image extension: ' + filext)
+        urlretrieve('https:' + i.get('src'), os.path.join(
+            'WSepub', 'OPS', 'Images', 'img_' + doc + '_' + str(num) + filext
+        ))
+        i.attrib['src'] = '../Images/img_' + doc + '_' + str(num) + filext
+        opfitem = etree.fromstring(
+            '<item id="img_%s_%s" href="Images/img_%s_%s%s" media-'
+            'type="%s"/>' % (doc, num, doc, num, doc, filext, mime))
+        manifest.append(opfitem)
+        num += 1
+    with open(os.path.join('WSepub/OPS/content.opf'), 'w') as f:
+        f.write(etree.tostring(opftree.getroot(), pretty_print=True,
+                standalone=False, xml_declaration=True, encoding='utf-8'))
+
+
+def next_url(tree):
+    for s in tree.xpath('//table[@class="infobox"]/tr/td[1]//a[@href]'):
+        if s.text == '>>>':
+            return 'https://pl.wikisource.org' + s.get('href')
+        else:
+            return None
+
+
+def process_dirty_tree(tree):
     book = tree.xpath('//div[@id="mw-content-text"]')[0]
+    title = tree.xpath('//title')[0]
     del tree.xpath('//html')[0].attrib['lang']
     del tree.xpath('//html')[0].attrib['dir']
     del tree.xpath('//html')[0].attrib['class']
@@ -324,6 +218,8 @@ def process_url(url, count, met):
     ))
     tree.xpath('//html')[0].append(etree.Element('body'))
     tree.xpath('//body')[0].append(book)
+    for s in tree.xpath('//div[@id="Template_law"]'):
+        remove_node(s)
     for s in tree.xpath('//table[@class="infobox"]'):
         remove_node(s)
     for s in tree.xpath('//comment()'):
@@ -360,10 +256,6 @@ def process_url(url, count, met):
             else:
                 s.attrib['style'] = 'font-size:' + font_size[s.attrib['size']]
             del s.attrib['size']
-    for s in tree.xpath(
-        '//div[@id="Template_law"]/div/div[@style="float: left;"]'
-    ):
-        remove_node(s)
     for s in tree.xpath('//a[@class="image"]/img'):
         at = s
         app = s.getparent().getparent()
@@ -390,37 +282,11 @@ def process_url(url, count, met):
             del s.attrib['data-file-height']
         except:
             pass
+    return tree
 
-    download_images(tree, btitle, bauthor)
-    bs = etree.tostring(
-        tree,
-        pretty_print=True,
-        xml_declaration=True, encoding='utf-8', standalone=False, doctype=DTD
-    )
-    bs = bs.replace('<span/>', '')
-    bs = bs.replace('href="#', 'href="text.xhtml#')
-    bs = bs.replace('href="/wiki', 'href="https://pl.wikisource.org/wiki')
-    bs = bs.replace('src="//upload', 'src="https://upload')
-    bs = bs.replace('<html>', '<html xmlns="http://www.w3.org/1999/xhtml">')
-    bs = bs.replace('<center>', '<div class="center">')
-    bs = bs.replace('</center>', '</div>')
-    bs = bs.replace('<p>', '<div class="para">')
-    bs = re.sub(
-        r'<p (.+?)>',
-        r'<div \1>',
-        bs
-    )
-    bs = re.sub(
-        r'\[(\d+)\]</a></sup>',
-        r'\1</a></sup>',
-        bs
-    )
-    bs = bs.replace(
-        'id="Template_law" class="toccolours" style="border-width:1px 0 0 0"',
-        'class="Template_law"'
-    )
-    bs = bs.replace('</p>', '</div>')
-    tree = etree.fromstring(bs)
+
+def process_tree(string):
+    tree = etree.fromstring(string)
     for s in tree.xpath(
         '//xhtml:div[@class="thumb tright"]', namespaces=XHTMLNS
     ):
@@ -449,9 +315,40 @@ def process_url(url, count, met):
                 '<br/>'
             ))
             remove_node(s.getparent()[s.getparent().index(s)+1])
-    move_law(tree)
-    build_toc_ncx(tree, rozlist)
-    generate_inline_toc()
+    # build_toc_ncx(tree, rozlist)
+    # generate_inline_toc()
+    return tree
+
+
+def regex_dirty_tree(tree):
+    bs = etree.tostring(
+        tree,
+        pretty_print=True,
+        xml_declaration=True, encoding='utf-8', standalone=False, doctype=DTD
+    )
+    bs = bs.replace('<span/>', '')
+    bs = bs.replace('href="#', 'href="text.xhtml#')
+    bs = bs.replace('href="/wiki', 'href="https://pl.wikisource.org/wiki')
+    bs = bs.replace('src="//upload', 'src="https://upload')
+    bs = bs.replace('<html>', '<html xmlns="http://www.w3.org/1999/xhtml">')
+    bs = bs.replace('<center>', '<div class="center">')
+    bs = bs.replace('</center>', '</div>')
+    bs = bs.replace('<p>', '<div class="para">')
+    bs = re.sub(
+        r'<p (.+?)>',
+        r'<div \1>',
+        bs
+    )
+    bs = re.sub(
+        r'\[(\d+)\]</a></sup>',
+        r'\1</a></sup>',
+        bs
+    )
+    bs = bs.replace('</p>', '</div>')
+    return bs
+
+
+def regex_tree(tree):
     bs = etree.tostring(
         tree,
         pretty_print=True,
@@ -483,36 +380,155 @@ def process_url(url, count, met):
     bs = bs.replace('<div id="mw-content-text" lang="pl" dir="ltr" '
                     'class="mw-content-ltr">',
                     '<div id="mw-content-text">')
-    return bs, bauthor, btitle
+    return bs
+
+
+def write_text_file(string, doc):
+    with open(
+            os.path.join("WSepub/OPS/Text/text_" + doc + ".xhtml"), "w"
+    ) as text_file:
+        text_file.write(string)
+
+
+def write_ncx_opf_entry(doc):
+    parser = etree.XMLParser(remove_blank_text=True)
+    opftree = etree.parse(os.path.join('WSepub/OPS/content.opf'), parser)
+    ncxtree = etree.parse(os.path.join('WSepub/OPS/toc.ncx'), parser)
+    manifest = opftree.xpath('//opf:manifest', namespaces=OPFNS)[0]
+    spine = opftree.xpath('//opf:spine', namespaces=OPFNS)[0]
+    nm = ncxtree.xpath('//ncx:navMap', namespaces=NCXNS)[0]
+    nm.insert(
+        etree.fromstring(
+            '<navPoint id="text_' + doc + '">'
+            '<navLabel><text>' + doc + '</text></navLabel>'
+            '<content src="Text/text_' + doc + '.xhtml" />'
+            '</navPoint>'
+        )
+    )
+    opfitem = etree.fromstring(
+        '<item id="text_%s" href="Text/text_%s.xhtml" media-'
+        'type="application/xhtml+xml"/>' % (doc, doc))
+    manifest.append(opfitem)
+    refitem = etree.fromstring('<itemref idref="text_%s"/>' % (doc))
+    spine.append(refitem)
+    with open(os.path.join('WSepub/OPS/content.opf'), 'w') as f:
+        f.write(etree.tostring(opftree.getroot(), pretty_print=True,
+                standalone=False, xml_declaration=True, encoding='utf-8'))
+    with open(os.path.join('WSepub/OPS/toc.ncx'), 'w') as f:
+        f.write(etree.tostring(ncxtree.getroot(), pretty_print=True,
+                standalone=False, xml_declaration=True, encoding='utf-8'))
+
+
+def move_info_toc_spine():
+    parser = etree.XMLParser(remove_blank_text=True)
+    opftree = etree.parse(os.path.join('WSepub/OPS/content.opf'), parser)
+    spine = opftree.xpath('//opf:spine', namespaces=OPFNS)[0]
+    info = opftree.xpath('//opf:itemref[@idref="info"]', namespaces=OPFNS)[0]
+    spine.append(info)
+    remove_node(info)
+    toc = opftree.xpath('//opf:itemref[@idref="toc"]', namespaces=OPFNS)[0]
+    spine.append(toc)
+    remove_node(toc)
+    with open(os.path.join('WSepub/OPS/content.opf'), 'w') as f:
+        f.write(etree.tostring(opftree.getroot(), pretty_print=True,
+                standalone=False, xml_declaration=True, encoding='utf-8'))
+
+
+def generate_inline_toc():
+    parser = etree.XMLParser(remove_blank_text=True)
+    ncxtree = etree.parse(os.path.join('WSepub/OPS/toc.ncx'), parser)
+    transform = etree.XSLT(etree.parse(os.path.join(
+        os.path.dirname(os.path.realpath(__file__)),
+        'xsl', 'ncx2end-0.2.xsl'
+    )))
+    result = transform(ncxtree)
+    for h in result.xpath('//xhtml:a', namespaces=XHTMLNS):
+        h.attrib['href'] = h.get('href').replace('Text/', '')
+    with open(os.path.join("WSepub/OPS/Text/toc.xhtml"), "w") as f:
+        f.write(etree.tostring(
+            result,
+            pretty_print=True,
+            xml_declaration=True,
+            standalone=False,
+            encoding="utf-8",
+            doctype=DTD
+        ))
+
+
+def pack_epub(bauthor, btitle):
+    output_filename = bauthor + ' - ' + btitle + '.epub'
+    source_dir = 'WSepub'
+    the_file = '.DS_Store'
+    try:
+        os.unlink(os.path.join(source_dir, the_file))
+    except:
+        pass
+    for root, dirs, files in os.walk(source_dir):
+        for d in dirs:
+            try:
+                os.unlink(os.path.join(root, d, the_file))
+            except:
+                pass
+    with zipfile.ZipFile(output_filename, "w") as zip:
+        zip.writestr("mimetype", "application/epub+zip")
+    relroot = source_dir
+    with zipfile.ZipFile(output_filename, "a", zipfile.ZIP_DEFLATED) as zip:
+        for root, dirs, files in os.walk(source_dir):
+            for file in files:
+                filename = os.path.join(root, file)
+                if os.path.isfile(filename):
+                    arcname = os.path.join(os.path.relpath(root, relroot),
+                                           file)
+                    if sys.platform == 'darwin':
+                        arcname = unicodedata.normalize(
+                            'NFC', unicode(arcname, 'utf-8')
+                        ).encode('utf-8')
+                    zip.write(filename, arcname.decode(SFENC))
 
 
 def main():
-    if args.all and not args.url.lower().endswith('całość'):
-        sys.exit('ERROR! Provode "całość" url.')
     prepare_dir()
-    if args.all:
-        if args.url.endswith('.txt'):
-            with open(os.path.join(args.url), 'r') as f:
-                urls = f.read().splitlines()
-            for u in urls:
-                print('Processing: ' + u)
-                bs, bauthor, btitle = process_url(u)
-                with open(os.path.join(
-                    "WSepub/OPS/Text/text.xhtml"
-                ), "w") as text_file:
-                    text_file.write(bs)
-                generate_cover(bauthor, btitle)
-                pack_epub(bauthor + ' - ' + btitle + '.epub', 'WSepub')
-        else:
-            bs, bauthor, btitle = process_url(args.url)
-            with open(os.path.join(
-                "WSepub/OPS/Text/text.xhtml"
-            ), "w") as text_file:
-                text_file.write(bs)
-            generate_cover(bauthor, btitle)
-            pack_epub(bauthor + ' - ' + btitle + '.epub', 'WSepub')
-    else:
-        process_single_url()
+    tree = url_to_tree(args.url)
+    doc = args.url.split('/')[-1]
+    nurl = next_url(tree)
+    bauthor, btitle = get_dc_data(tree)
+    write_dc_data(bauthor, btitle, args.url)
+    tree = write_law(tree)
+    generate_cover(bauthor, btitle)
+    tree = process_dirty_tree(tree)
+    download_images(tree, doc)
+    string = regex_dirty_tree(tree)
+    tree = process_tree(string)
+    string = regex_tree(tree)
+    write_text_file(string, doc)
+    write_ncx_opf_entry(doc)
+    while nurl is not None:
+        tree = url_to_tree(nurl)
+        doc = nurl.split('/')[-1]
+        nurl = next_url(tree)
+        tree = process_dirty_tree(tree)
+        download_images(tree, doc)
+        string = regex_dirty_tree(tree)
+        tree = process_tree(string)
+        string = regex_tree(tree)
+        write_text_file(string, doc)
+        write_ncx_opf_entry(doc)
+    move_info_toc_spine()
+    generate_inline_toc()
+    pack_epub(bauthor, btitle)
+    # if args.url.endswith('.txt'):
+    #     with open(os.path.join(args.url), 'r') as f:
+    #         urls = f.read().splitlines()
+    #     for u in urls:
+    #         print('Processing: ' + u)
+    #         bs, bauthor, btitle = process_url(u)
+    #         with open(os.path.join(
+    #             "WSepub/OPS/Text/text.xhtml"
+    #         ), "w") as text_file:
+    #             text_file.write(bs)
+    #         generate_cover(bauthor, btitle)
+    #         pack_epub(bauthor, btitle)
+
     if len(sys.argv) == 1:
         print("* * *")
         print("* At least one of above optional arguments is required.")

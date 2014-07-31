@@ -11,7 +11,7 @@ margin:0 auto;
 display:inline-table;
 }*/
 
-hr.wsrozdzial {
+.wsrozdzial {
 page-break-before: always;
 visibility: hidden;
 }

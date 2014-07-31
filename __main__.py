@@ -569,6 +569,15 @@ def pack_epub(bauthor, btitle):
                     zip.write(filename, arcname.decode(SFENC))
 
 
+def insert_hr_before_static(tree):
+    for s in tree.xpath('//div[contains(@style, "position:static")]'):
+        print('1')
+        parent = s.getparent()
+        index = parent.index(s)
+        parent.insert(index, etree.fromstring('<div class="wsrozdzial" />'))
+    return tree
+
+
 def normalize_doc_name(url):
     doc = url.split('/')[-1]
     docu = unquote(doc).decode('utf8')
@@ -587,6 +596,8 @@ def main():
     nurl = next_url(tree)
     if all_url:
         tree = get_title_page_tree(all_url)
+    else:
+        tree = insert_hr_before_static(tree)
     tree = split_hr(tree)
     doc, docu = normalize_doc_name(args.url)
     set_text_reference(doc)

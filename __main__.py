@@ -50,6 +50,12 @@ parser.add_argument("url", help="URL to WS book or TXT file with URLs")
 args = parser.parse_args()
 
 
+def strip_accents(text):
+    return ''.join(c for c in unicodedata.normalize(
+        'NFKD', text
+    ) if unicodedata.category(c) != 'Mn')
+
+
 def remove_node(node):
     parent = node.getparent()
     index = parent.index(node)
@@ -316,20 +322,20 @@ def process_dirty_tree(tree):
 
 def process_tree(string):
     tree = etree.fromstring(string)
-    for s in tree.xpath(
-        '//xhtml:div[@class="thumb tright"]', namespaces=XHTMLNS
-    ):
-        s.getparent()[
-            s.getparent().index(s)-1
-        ].tail = s.getparent()[s.getparent().index(s)-1].tail + s.tail
-        s.tail = ''
-        if s.getparent()[
-            s.getparent().index(s)+1
-        ].tag == '{http://www.w3.org/1999/xhtml}br':
-            s.getparent().insert(s.getparent().index(s), etree.fromstring(
-                '<br/>'
-            ))
-            remove_node(s.getparent()[s.getparent().index(s)+1])
+    # for s in tree.xpath(
+    #     '//xhtml:div[@class="thumb tright"]', namespaces=XHTMLNS
+    # ):
+    #     s.getparent()[
+    #         s.getparent().index(s)-1
+    #     ].tail = s.getparent()[s.getparent().index(s)-1].tail + s.tail
+    #     s.tail = ''
+    #     if s.getparent()[
+    #         s.getparent().index(s)+1
+    #     ].tag == '{http://www.w3.org/1999/xhtml}br':
+    #         s.getparent().insert(s.getparent().index(s), etree.fromstring(
+    #             '<br/>'
+    #         ))
+    #         remove_node(s.getparent()[s.getparent().index(s)+1])
     for s in tree.xpath(
         '//xhtml:div[@class="thumb tleft"]', namespaces=XHTMLNS
     ):
@@ -356,7 +362,7 @@ def regex_dirty_tree(tree, doc):
         xml_declaration=True, encoding='utf-8', standalone=False, doctype=DTD
     )
     bs = bs.replace('<span/>', '')
-    bs = bs.replace('href="#', 'href="text_%s.xhtml#' % (doc))
+    bs = bs.replace('href="#', 'href="text_%s.xhtml#' % (doc.encode('utf8')))
     bs = bs.replace('href="/wiki', 'href="https://pl.wikisource.org/wiki')
     bs = bs.replace('src="//upload', 'src="https://upload')
     bs = bs.replace('<html>', '<html xmlns="http://www.w3.org/1999/xhtml">')
@@ -419,7 +425,7 @@ def write_text_file(string, doc):
         text_file.write(string)
 
 
-def write_ncx_opf_entry(doc):
+def write_ncx_opf_entry(doc, docu):
     parser = etree.XMLParser(remove_blank_text=True)
     opftree = etree.parse(os.path.join('WSepub/OPS/content.opf'), parser)
     ncxtree = etree.parse(os.path.join('WSepub/OPS/toc.ncx'), parser)
@@ -429,7 +435,7 @@ def write_ncx_opf_entry(doc):
     nm.append(
         etree.fromstring(
             '<navPoint id="text_' + doc + '">'
-            '<navLabel><text>' + doc + '</text></navLabel>'
+            '<navLabel><text>' + docu.replace('_', ' ') + '</text></navLabel>'
             '<content src="Text/text_' + doc + '.xhtml" />'
             '</navPoint>'
         )
@@ -522,18 +528,25 @@ def pack_epub(bauthor, btitle):
                     zip.write(filename, arcname.decode(SFENC))
 
 
+def normalize_doc_name(url):
+    doc = url.split('/')[-1]
+    docu = unquote(doc).decode('utf8')
+    doc = strip_accents(unicode(docu))
+    doc = doc.encode('utf8').replace('ł', 'l')
+    return doc, docu
+
+
 def main():
     prepare_dir()
     tree = url_to_tree(args.url)
     tree = split_hr(tree)
-    doc = args.url.split('/')[-1]
+    doc, docu = normalize_doc_name(args.url)
     set_text_reference(doc)
     nurl = next_url(tree)
     print(nurl)
     bauthor, btitle = get_dc_data(tree)
     write_dc_data(bauthor, btitle, args.url)
     tree = write_law(tree)
-    # sys.exit()
     generate_cover(bauthor, btitle)
     tree = process_dirty_tree(tree)
     download_images(tree, doc)
@@ -541,10 +554,10 @@ def main():
     tree = process_tree(string)
     string = regex_tree(tree)
     write_text_file(string, doc)
-    write_ncx_opf_entry(doc)
+    write_ncx_opf_entry(doc, docu)
     while nurl is not None:
         tree = url_to_tree(nurl)
-        doc = nurl.split('/')[-1]
+        doc, docu = normalize_doc_name(nurl)
         nurl = next_url(tree)
         tree = process_dirty_tree(tree)
         download_images(tree, doc)
@@ -552,7 +565,7 @@ def main():
         tree = process_tree(string)
         string = regex_tree(tree)
         write_text_file(string, doc)
-        write_ncx_opf_entry(doc)
+        write_ncx_opf_entry(doc, docu)
         print(nurl)
     move_info_toc_spine_ncx()
     generate_inline_toc()

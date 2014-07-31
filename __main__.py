@@ -40,6 +40,9 @@ NCXNS = {'ncx': 'http://www.daisy.org/z3986/2005/ncx/'}
 parser = argparse.ArgumentParser()
 parser.add_argument('-V', '--version', action='version',
                     version="%(prog)s (version " + __version__ + ")")
+parser.add_argument("-n", "--no-next",
+                    help="try different method to get book from WS",
+                    action="store_true")
 parser.add_argument("url", help="URL to WS book or TXT file with URLs")
 args = parser.parse_args()
 
@@ -258,6 +261,21 @@ def next_url(tree):
     return nurl
 
 
+def next_url2(tree):
+    nurl = None
+    for s in tree.xpath('//table[@class="infobox"]'):
+        remove_node(s)
+    for s in tree.xpath('//div[@id="mw-content-text"]//a[@href]'):
+        if ":" in s.get('href'):
+            continue
+        nurl = 'https://pl.wikisource.org' + s.get('href')
+        print(nurl)
+        break
+    for s in tree.xpath('//div[@id="mw-content-text"]//a[@href]'):
+        remove_node(s)
+    return nurl
+
+
 def process_dirty_tree(tree):
     book = tree.xpath('//div[@id="mw-content-text"]')[0]
     title = tree.xpath('//title')[0]
@@ -393,8 +411,6 @@ def process_tree(string):
                 '<br/>'
             ))
             remove_node(s.getparent()[s.getparent().index(s)+1])
-    # build_toc_ncx(tree, rozlist)
-    # generate_inline_toc()
     return tree
 
 
@@ -571,7 +587,6 @@ def pack_epub(bauthor, btitle):
 
 def insert_hr_before_static(tree):
     for s in tree.xpath('//div[contains(@style, "position:static")]'):
-        print('1')
         parent = s.getparent()
         index = parent.index(s)
         parent.insert(index, etree.fromstring('<div class="wsrozdzial" />'))
@@ -594,7 +609,9 @@ def main():
     bauthor, btitle, all_url = get_dc_data(tree)
     print(bauthor, btitle)
     nurl = next_url(tree)
-    if all_url:
+    if nurl is None and args.no_next:
+        nurl = next_url2(tree)
+    if all_url and not args.no_next:
         tree = get_title_page_tree(all_url)
     else:
         tree = insert_hr_before_static(tree)

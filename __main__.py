@@ -175,7 +175,7 @@ def split_hr(tree):
 def set_text_reference(doc):
     parser = etree.XMLParser(remove_blank_text=True)
     opftree = etree.parse(os.path.join('WSepub/OPS/content.opf'), parser)
-    guide = opftree.xpath('//opf:manifest', namespaces=OPFNS)[0]
+    guide = opftree.xpath('//opf:guide', namespaces=OPFNS)[0]
     guide.append(etree.fromstring(
         '<reference type="text" title="Text" href="Text/text_%s.xhtml" />' %
         (doc)

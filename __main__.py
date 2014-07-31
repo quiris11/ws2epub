@@ -317,6 +317,29 @@ def process_dirty_tree(tree):
             del s.attrib['data-file-height']
         except:
             pass
+
+    return tree
+
+
+def replace_align_attribute(tree):
+    for t in tree.xpath('//xhtml:*[@align]', namespaces=XHTMLNS):
+        if t.get('style'):
+            t.attrib['style'] = t.attrib['style'] + ';text-align:' + \
+                t.get('align')
+        else:
+            t.attrib['style'] = 'text-align:' + t.get('align')
+        del t.attrib['align']
+    return tree
+
+
+def replace_width_attribute(tree):
+    for t in tree.xpath('//xhtml:*[@width]', namespaces=XHTMLNS):
+        if t.get('style'):
+            t.attrib['style'] = t.attrib['style'] + ';width:' + \
+                t.get('width')
+        else:
+            t.attrib['style'] = 'width:' + t.get('width')
+        del t.attrib['width']
     return tree
 
 
@@ -552,6 +575,8 @@ def main():
     download_images(tree, doc)
     string = regex_dirty_tree(tree, doc)
     tree = process_tree(string)
+    tree = replace_align_attribute(tree)
+    tree = replace_width_attribute(tree)
     string = regex_tree(tree)
     write_text_file(string, doc)
     write_ncx_opf_entry(doc, docu)
@@ -563,6 +588,8 @@ def main():
         download_images(tree, doc)
         string = regex_dirty_tree(tree, doc)
         tree = process_tree(string)
+        tree = replace_align_attribute(tree)
+        tree = replace_width_attribute(tree)
         string = regex_tree(tree)
         write_text_file(string, doc)
         write_ncx_opf_entry(doc, docu)

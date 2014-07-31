@@ -11,9 +11,13 @@ margin:0 auto;
 display:inline-table;
 }*/
 
-.wsrozdzial {
+hr.wsrozdzial {
 page-break-before: always;
-/*visibility: hidden;*/
+visibility: hidden;
+}
+
+hr.hidden {
+visibility: hidden;
 }
 
 .center,h1,h2,h3,h4,h5,h6 {

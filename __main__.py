@@ -40,12 +40,6 @@ NCXNS = {'ncx': 'http://www.daisy.org/z3986/2005/ncx/'}
 parser = argparse.ArgumentParser()
 parser.add_argument('-V', '--version', action='version',
                     version="%(prog)s (version " + __version__ + ")")
-parser.add_argument("-f", "--force",
-                    help="overwrite previously generated EPUB files",
-                    action="store_true")
-parser.add_argument("-a", "--all",
-                    help="create EPUB from 'całość' page",
-                    action="store_true")
 parser.add_argument("url", help="URL to WS book or TXT file with URLs")
 args = parser.parse_args()
 
@@ -74,14 +68,21 @@ def remove_node(node):
 
 
 def prepare_dir():
-    if os.path.exists('WSepub'):
-        shutil.rmtree('WSepub')
+    if os.path.exists(os.path.join('WSepub')):
+        shutil.rmtree(os.path.join('WSepub'))
     shutil.copytree(os.path.join(
         os.path.dirname(os.path.realpath(__file__)),
         'resources'), 'WSepub')
 
 
 def get_dc_data(tree):
+    for a in tree.xpath('//table[@class="infobox"]//a[@title]'):
+        if 'całość' in a.get('title').encode('utf8').lower():
+            all_url = a.get('href')
+            break
+        else:
+            all_url = None
+    # print(all_url)
     if tree.xpath(
         '//table[@class="infobox"]/tr[2]/td[1]'
     )[0].text == 'Autor':
@@ -100,7 +101,18 @@ def get_dc_data(tree):
             )[0].text
         except:
             sys.exit('ERROR! Unable to find book title!')
-    return bauthor, btitle
+    return bauthor, btitle, all_url
+
+
+def get_title_page_tree(fragment_url):
+    tree = url_to_tree('https://pl.wikisource.org' + fragment_url)
+    for s in tree.xpath('//div[contains(@style, "position:static")]'):
+        remove_node(s)
+    for s in tree.xpath('//div[@class="refsection"]'):
+        remove_node(s)
+    for s in tree.xpath('//h2/*[@id="Przypisy"]'):
+        remove_node(s.getparent())
+    return tree
 
 
 def generate_cover(bauthor, btitle):
@@ -175,6 +187,11 @@ def split_hr(tree):
             s.attrib['class'] = 'wsrozdzial'
         except:
             pass
+    try:
+        tree.xpath('//hr')[-1].attrib['class'] = 'hidden'
+    except:
+        print('Warning! No HR on title page.')
+        pass
     return tree
 
 
@@ -554,18 +571,21 @@ def normalize_doc_name(url):
     docu = unquote(doc).decode('utf8')
     doc = strip_accents(unicode(docu))
     doc = doc.encode('utf8').replace('ł', 'l')
+    doc = doc.replace('\xe2\x80\x94', '-')
     return doc, docu
 
 
 def main():
     prepare_dir()
     tree = url_to_tree(args.url)
+    bauthor, btitle, all_url = get_dc_data(tree)
+    nurl = next_url(tree)
+    if all_url:
+        tree = get_title_page_tree(all_url)
     tree = split_hr(tree)
     doc, docu = normalize_doc_name(args.url)
     set_text_reference(doc)
-    nurl = next_url(tree)
     print(nurl)
-    bauthor, btitle = get_dc_data(tree)
     write_dc_data(bauthor, btitle, args.url)
     tree = write_law(tree)
     generate_cover(bauthor, btitle)
@@ -595,19 +615,8 @@ def main():
     move_info_toc_spine_ncx()
     generate_inline_toc()
     pack_epub(bauthor, btitle)
-    # if args.url.endswith('.txt'):
-    #     with open(os.path.join(args.url), 'r') as f:
-    #         urls = f.read().splitlines()
-    #     for u in urls:
-    #         print('Processing: ' + u)
-    #         bs, bauthor, btitle = process_url(u)
-    #         with open(os.path.join(
-    #             "WSepub/OPS/Text/text.xhtml"
-    #         ), "w") as text_file:
-    #             text_file.write(bs)
-    #         generate_cover(bauthor, btitle)
-    #         pack_epub(bauthor, btitle)
-
+    if os.path.exists(os.path.join('WSepub')):
+        shutil.rmtree(os.path.join('WSepub'))
     if len(sys.argv) == 1:
         print("* * *")
         print("* At least one of above optional arguments is required.")

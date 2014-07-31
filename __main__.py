@@ -187,6 +187,11 @@ def split_hr(tree):
             s.attrib['class'] = 'wsrozdzial'
         except:
             pass
+    for s in tree.xpath('//table//hr'):
+        try:
+            del s.attrib['class']
+        except:
+            pass
     try:
         tree.xpath('//hr')[-1].attrib['class'] = 'hidden'
     except:
@@ -572,6 +577,7 @@ def normalize_doc_name(url):
     doc = strip_accents(unicode(docu))
     doc = doc.encode('utf8').replace('ł', 'l')
     doc = doc.replace('\xe2\x80\x94', '-')
+    doc = re.sub(r'\W+', '', doc)
     return doc, docu
 
 
@@ -579,6 +585,7 @@ def main():
     prepare_dir()
     tree = url_to_tree(args.url)
     bauthor, btitle, all_url = get_dc_data(tree)
+    print(bauthor, btitle)
     nurl = next_url(tree)
     if all_url:
         tree = get_title_page_tree(all_url)

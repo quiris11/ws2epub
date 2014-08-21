@@ -403,10 +403,11 @@ def process_tree(string):
     for s in tree.xpath(
         '//xhtml:div[@class="thumb tleft"]', namespaces=XHTMLNS
     ):
-        s.getparent()[
-            s.getparent().index(s)-1
-        ].tail = s.getparent()[s.getparent().index(s)-1].tail + s.tail
-        s.tail = ''
+        if s.getparent()[s.getparent().index(s)-1].tail is not None:
+            s.getparent()[
+                s.getparent().index(s)-1
+            ].tail = s.getparent()[s.getparent().index(s)-1].tail + s.tail
+            s.tail = ''
         if s.getparent()[
             s.getparent().index(s)+1
         ].tag == '{http://www.w3.org/1999/xhtml}br':

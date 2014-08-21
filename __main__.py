@@ -318,23 +318,6 @@ def process_dirty_tree(tree):
             del s.attrib['style']
         except:
             pass
-    font_size = {'1': '.63em', '2': '.82em', '3': '1em',
-                 '4': '1.13em', '5': '1.5em', '6': '2em', '7': '3em'}
-    for s in tree.xpath('//font'):
-        if s.get('color'):
-            if s.get('style'):
-                s.attrib['style'] = s.attrib['style'] + ';color:' + \
-                    s.attrib['color']
-            else:
-                s.attrib['style'] = 'color:' + s.attrib['color']
-            del s.attrib['color']
-        if s.get('size'):
-            if s.get('style'):
-                s.attrib['style'] = s.attrib['style'] + ';font-size:' + \
-                    font_size[s.attrib['size']]
-            else:
-                s.attrib['style'] = 'font-size:' + font_size[s.attrib['size']]
-            del s.attrib['size']
     for s in tree.xpath('//a[@class="image"]/img'):
         at = s
         app = s.getparent().getparent()
@@ -601,6 +584,27 @@ def insert_hr_before_static(tree):
     return tree
 
 
+def replace_font_tag(tree):
+    font_size = {'1': '.63em', '2': '.82em', '3': '1em',
+                 '4': '1.13em', '5': '1.5em', '6': '2em', '7': '3em'}
+    for s in tree.xpath('//xhtml:font', namespaces=XHTMLNS):
+        if s.get('color'):
+            if s.get('style'):
+                s.attrib['style'] = s.attrib['style'] + ';color:' + \
+                    s.attrib['color']
+            else:
+                s.attrib['style'] = 'color:' + s.attrib['color']
+            del s.attrib['color']
+        if s.get('size'):
+            if s.get('style'):
+                s.attrib['style'] = s.attrib['style'] + ';font-size:' + \
+                    font_size[s.attrib['size']]
+            else:
+                s.attrib['style'] = 'font-size:' + font_size[s.attrib['size']]
+            del s.attrib['size']
+    return tree
+
+
 def normalize_doc_name(url):
     doc = url.split('/')[-1]
     docu = unquote(doc).decode('utf8')
@@ -655,6 +659,7 @@ def main():
     tree = process_tree(string)
     tree = replace_align_attribute(tree)
     tree = replace_width_attribute(tree)
+    tree = replace_font_tag(tree)
     string = regex_tree(tree)
     write_text_file(string, doc)
     write_ncx_opf_entry(doc, docu)
@@ -678,6 +683,7 @@ def main():
         tree = process_tree(string)
         tree = replace_align_attribute(tree)
         tree = replace_width_attribute(tree)
+        tree = replace_font_tag(tree)
         string = regex_tree(tree)
         write_text_file(string, doc)
         write_ncx_opf_entry(doc, docu)

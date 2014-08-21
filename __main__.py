@@ -496,7 +496,7 @@ def write_ncx_opf_entry(doc, docu):
     manifest = opftree.xpath('//opf:manifest', namespaces=OPFNS)[0]
     spine = opftree.xpath('//opf:spine', namespaces=OPFNS)[0]
     nm = ncxtree.xpath('//ncx:navMap', namespaces=NCXNS)[0]
-    print(docu, doc)
+    # print(docu, doc)
     nm.append(
         etree.fromstring(
             '<navPoint id="text_' + doc + '">'

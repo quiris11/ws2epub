@@ -49,6 +49,8 @@ parser.add_argument("-o", "--other",
 parser.add_argument("-t", "--toc",
                     help="Load URLs from custom TOC",
                     action="store_true")
+parser.add_argument('-p', '--title-page', nargs='?', metavar='NR',
+                    const='1', help='Number of index page with title page')
 parser.add_argument("url", help="URL to WS book or TXT file with URLs")
 args = parser.parse_args()
 
@@ -223,7 +225,11 @@ def set_text_reference(doc):
 
 
 def url_to_tree(url):
-    content = urllib2.urlopen(url).read()
+    try:
+        content = urllib2.urlopen(url).read()
+    except Exception, e:
+        print('ERROR! Unable to get content from url. Problem code: ' + str(e))
+        sys.exit()
     content = content.replace('&#160;', ' ')
     content = re.sub(r'(\s+[a-z0-9]+)=([\'|\"]{0})([a-z0-9]+)([\'|\"]{0})',
                      r'\1="\3"',
@@ -282,9 +288,13 @@ def next_url2(tree):
     return nurl
 
 
-def process_dirty_tree(tree):
-    book = tree.xpath('//div[@id="mw-content-text"]')[0]
-    title = tree.xpath('//title')[0]
+def process_dirty_tree(tree, is_title_page):
+    if is_title_page:
+        book = tree.xpath('//div[@class="pagetext"]')[0]
+        title = etree.fromstring('<title>Strona tytułowa</title>')
+    else:
+        book = tree.xpath('//div[@id="mw-content-text"]')[0]
+        title = tree.xpath('//title')[0]
     del tree.xpath('//html')[0].attrib['lang']
     del tree.xpath('//html')[0].attrib['dir']
     del tree.xpath('//html')[0].attrib['class']
@@ -635,25 +645,33 @@ def main():
     bauthor, btitle, all_url = get_dc_data(tree)
     print(bauthor, btitle)
     doc, docu = normalize_doc_name(args.url)
+    ti = 0
     if args.toc:
-        ti = 0
         docu = 'Strona tytułowa'
         nurl = nurls[ti]
     else:
         nurl = next_url(tree)
     if nurl is None and args.no_next:
         nurl = next_url2(tree)
-    if all_url and not args.no_next:
-        tree = get_title_page_tree(all_url)
+    if not args.title_page:
+        is_tp = 0
+        if all_url and not args.no_next:
+            tree = get_title_page_tree(all_url)
+        else:
+            tree = insert_hr_before_static(tree)
+        tree = split_hr(tree)
     else:
-        tree = insert_hr_before_static(tree)
-    tree = split_hr(tree)
+        tree = url_to_tree(args.url)
+        m = tree.xpath('//span[@class="PageNumber"]//a[@title]')[0].get('href')
+        m = '/'.join(m.split('/')[:-1]) + '/' + args.title_page
+        print('Using title page from: ' + unquote(m).decode('utf8'))
+        docu = 'Strona tytułowa'
+        is_tp = 1
+        tree = url_to_tree('https://pl.wikisource.org' + m)
     set_text_reference(doc)
-    print(nurl)
     write_dc_data(bauthor, btitle, args.url)
-    tree = write_law(tree)
     generate_cover(bauthor, btitle)
-    tree = process_dirty_tree(tree)
+    tree = process_dirty_tree(tree, is_tp)
     download_images(tree, doc)
     string = regex_dirty_tree(tree, doc)
     tree = process_tree(string)
@@ -667,8 +685,10 @@ def main():
         print(nurl)
         tree = url_to_tree(nurl)
         doc, docu = normalize_doc_name(nurl)
+        ti += 1
+        if ti == 1:
+            tree = write_law(tree)
         if args.toc:
-            ti += 1
             if ti < len(nurls):
                 nurl = nurls[ti]
             else:
@@ -677,7 +697,7 @@ def main():
             doc = doc + str(ti)
         else:
             nurl = next_url(tree)
-        tree = process_dirty_tree(tree)
+        tree = process_dirty_tree(tree, 0)
         download_images(tree, doc)
         string = regex_dirty_tree(tree, doc)
         tree = process_tree(string)

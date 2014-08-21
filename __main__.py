@@ -46,6 +46,9 @@ parser.add_argument("-n", "--no-next",
 parser.add_argument("-o", "--other",
                     help="get other book from WS",
                     action="store_true")
+parser.add_argument("-t", "--toc",
+                    help="Load URLs from custom TOC",
+                    action="store_true")
 parser.add_argument("url", help="URL to WS book or TXT file with URLs")
 args = parser.parse_args()
 
@@ -236,7 +239,7 @@ def download_images(tree, url):
     manifest = opftree.xpath('//opf:manifest', namespaces=OPFNS)[0]
     for i in tree.xpath('//img'):
         filext = os.path.splitext(i.get('src').split("/")[-1])[1]
-        if filext == '.jpg':
+        if filext == '.jpg' or filext == '.jpeg':
             mime = 'image/jpeg'
         elif filext == '.png':
             mime = 'image/png'
@@ -493,6 +496,7 @@ def write_ncx_opf_entry(doc, docu):
     manifest = opftree.xpath('//opf:manifest', namespaces=OPFNS)[0]
     spine = opftree.xpath('//opf:spine', namespaces=OPFNS)[0]
     nm = ncxtree.xpath('//ncx:navMap', namespaces=NCXNS)[0]
+    print(docu, doc)
     nm.append(
         etree.fromstring(
             '<navPoint id="text_' + doc + '">'
@@ -607,12 +611,32 @@ def normalize_doc_name(url):
     return doc, docu
 
 
+def load_custom_toc():
+    toc_titles = []
+    nurls = []
+    tree = etree.parse("toc.html")
+    # print(etree.tostring(tree))
+    for a in tree.xpath('//a'):
+        toc_titles.append(a.text)
+        nurls.append('https://pl.wikisource.org' + a.get('href'))
+    return toc_titles, nurls
+
+
 def main():
+    if args.toc:
+        toc_titles, nurls = load_custom_toc()
+    # sys.exit()
     prepare_dir()
     tree = url_to_tree(args.url)
     bauthor, btitle, all_url = get_dc_data(tree)
     print(bauthor, btitle)
-    nurl = next_url(tree)
+    doc, docu = normalize_doc_name(args.url)
+    if args.toc:
+        ti = 0
+        docu = 'Strona tytułowa'
+        nurl = nurls[ti]
+    else:
+        nurl = next_url(tree)
     if nurl is None and args.no_next:
         nurl = next_url2(tree)
     if all_url and not args.no_next:
@@ -620,7 +644,6 @@ def main():
     else:
         tree = insert_hr_before_static(tree)
     tree = split_hr(tree)
-    doc, docu = normalize_doc_name(args.url)
     set_text_reference(doc)
     print(nurl)
     write_dc_data(bauthor, btitle, args.url)
@@ -636,9 +659,19 @@ def main():
     write_text_file(string, doc)
     write_ncx_opf_entry(doc, docu)
     while nurl is not None:
+        print(nurl)
         tree = url_to_tree(nurl)
         doc, docu = normalize_doc_name(nurl)
-        nurl = next_url(tree)
+        if args.toc:
+            ti += 1
+            if ti < len(nurls):
+                nurl = nurls[ti]
+            else:
+                nurl = None
+            docu = toc_titles[ti-1]
+            doc = doc + str(ti)
+        else:
+            nurl = next_url(tree)
         tree = process_dirty_tree(tree)
         download_images(tree, doc)
         string = regex_dirty_tree(tree, doc)
@@ -648,7 +681,6 @@ def main():
         string = regex_tree(tree)
         write_text_file(string, doc)
         write_ncx_opf_entry(doc, docu)
-        print(nurl)
     move_info_toc_spine_ncx()
     generate_inline_toc()
     pack_epub(bauthor, btitle)

@@ -450,19 +450,19 @@ def regex_tree(tree):
     )
     bs = re.sub(
         r'\n<div class="para">'
-        '<span style="padding-left:18px; text-align:left;">\s{1}</span>'
+        '<span style="padding-left:18px;{0,1}">\s{1}</span>'
         '(.+)<br/>',
         r'\n<div class="para"><p>\1</p>',
         bs
     )
     bs = re.sub(
-        r'\n<span style="padding-left:18px; text-align:left;">\s{1}</span>'
+        r'\n<span style="padding-left:18px;{0,1}">\s{1}</span>'
         '(.+)<br/>',
         r'\n<p>\1</p>',
         bs
     )
     bs = re.sub(
-        r'\n<span style="padding-left:18px; text-align:left;">\s{1}</span>'
+        r'\n<span style="padding-left:18px;{0,1}">\s{1}</span>'
         '(.+)\n\n(.+)<br/>',
         r'\n<p>\1\2</p>',
         bs

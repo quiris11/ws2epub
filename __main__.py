@@ -288,8 +288,8 @@ def next_url2(tree):
     return nurl
 
 
-def process_dirty_tree(tree, is_title_page):
-    if is_title_page:
+def process_dirty_tree(tree, url):
+    if 'Strona:' in url:
         book = tree.xpath('//div[@class="pagetext"]')[0]
         title = etree.fromstring('<title>Strona tytułowa</title>')
     else:
@@ -654,7 +654,6 @@ def main():
     if nurl is None and args.no_next:
         nurl = next_url2(tree)
     if not args.title_page:
-        is_tp = 0
         if all_url and not args.no_next:
             tree = get_title_page_tree(all_url)
         else:
@@ -663,15 +662,18 @@ def main():
     else:
         tree = url_to_tree(args.url)
         m = tree.xpath('//span[@class="PageNumber"]//a[@title]')[0].get('href')
-        m = '/'.join(m.split('/')[:-1]) + '/' + args.title_page
+        m = 'https://pl.wikisource.org' + '/'.join(m.split('/')[:-1]) + \
+            '/' + args.title_page
         print('Using title page from: ' + unquote(m).decode('utf8'))
         docu = 'Strona tytułowa'
-        is_tp = 1
-        tree = url_to_tree('https://pl.wikisource.org' + m)
+        tree = url_to_tree(m)
     set_text_reference(doc)
     write_dc_data(bauthor, btitle, args.url)
     generate_cover(bauthor, btitle)
-    tree = process_dirty_tree(tree, is_tp)
+    if args.title_page:
+        tree = process_dirty_tree(tree, m)
+    else:
+        tree = process_dirty_tree(tree, args.url)
     download_images(tree, doc)
     string = regex_dirty_tree(tree, doc)
     tree = process_tree(string)
@@ -683,6 +685,7 @@ def main():
     write_ncx_opf_entry(doc, docu)
     while nurl is not None:
         print(nurl)
+        curl = nurl
         tree = url_to_tree(nurl)
         doc, docu = normalize_doc_name(nurl)
         ti += 1
@@ -697,7 +700,7 @@ def main():
             doc = doc + str(ti)
         else:
             nurl = next_url(tree)
-        tree = process_dirty_tree(tree, 0)
+        tree = process_dirty_tree(tree, curl)
         download_images(tree, doc)
         string = regex_dirty_tree(tree, doc)
         tree = process_tree(string)

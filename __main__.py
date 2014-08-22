@@ -46,9 +46,8 @@ parser.add_argument("-n", "--no-next",
 parser.add_argument("-o", "--other",
                     help="get other book from WS",
                     action="store_true")
-parser.add_argument("-t", "--toc",
-                    help="Load URLs from custom TOC",
-                    action="store_true")
+parser.add_argument("-t", "--toc", nargs='?', metavar='TOC',
+                    const='1', help="Load URLs from specified TOC")
 parser.add_argument('-p', '--title-page', nargs='?', metavar='NR',
                     const='1', help='Number of index page with title page')
 parser.add_argument("url", help="URL to WS book or TXT file with URLs")
@@ -625,11 +624,13 @@ def normalize_doc_name(url):
     return doc, docu
 
 
-def load_custom_toc():
+def load_custom_toc(file):
     toc_titles = []
     nurls = []
-    tree = etree.parse("toc.html")
-    # print(etree.tostring(tree))
+    if os.path.exists(os.path.join(file)):
+        tree = etree.parse(os.path.join(file))
+    else:
+        sys.exit('ERROR! Unable to load custom TOC file.')
     for a in tree.xpath('//a'):
         toc_titles.append(a.text)
         nurls.append('https://pl.wikisource.org' + a.get('href'))
@@ -638,7 +639,7 @@ def load_custom_toc():
 
 def main():
     if args.toc:
-        toc_titles, nurls = load_custom_toc()
+        toc_titles, nurls = load_custom_toc(args.toc)
     # sys.exit()
     prepare_dir()
     tree = url_to_tree(args.url)

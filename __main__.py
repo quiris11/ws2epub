@@ -223,7 +223,7 @@ def set_text_reference(doc):
 
 
 def url_to_tree(url):
-    print('Loading: ' + unquote(url).decode(SFENC))
+    print('Processing: ' + unquote(url).decode(SFENC))
     try:
         content = urllib2.urlopen(url).read()
     except Exception, e:

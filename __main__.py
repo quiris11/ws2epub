@@ -92,7 +92,6 @@ def get_dc_data(tree):
             break
         else:
             all_url = None
-    # print(all_url)
     if tree.xpath(
         '//table[@class="infobox"]/tr[2]/td[1]'
     )[0].text == 'Autor':
@@ -224,12 +223,14 @@ def set_text_reference(doc):
 
 
 def url_to_tree(url):
+    print('Loading: ' + unquote(url).decode(SFENC))
     try:
         content = urllib2.urlopen(url).read()
     except Exception, e:
         print('ERROR! Unable to get content from url. Problem code: ' + str(e))
         sys.exit()
     content = content.replace('&#160;', ' ')
+    content = content.replace('&lrm;', ' ')
     content = re.sub(r'(\s+[a-z0-9]+)=([\'|\"]{0})([a-z0-9]+)([\'|\"]{0})',
                      r'\1="\3"',
                      content)
@@ -287,10 +288,13 @@ def next_url2(tree):
     return nurl
 
 
-def process_dirty_tree(tree, url):
+def process_dirty_tree(tree, url, qix):
     if 'Strona:' in url:
         book = tree.xpath('//div[@class="pagetext"]')[0]
         title = etree.fromstring('<title>Strona tytułowa</title>')
+    elif qix is not None:
+        book = tree.xpath('//div[@id="mw-content-text"]//div[1]/div[1]')[0]
+        title = tree.xpath('//title')[0]
     else:
         book = tree.xpath('//div[@id="mw-content-text"]')[0]
         title = tree.xpath('//title')[0]
@@ -381,20 +385,6 @@ def replace_width_attribute(tree):
 
 def process_tree(string):
     tree = etree.fromstring(string)
-    # for s in tree.xpath(
-    #     '//xhtml:div[@class="thumb tright"]', namespaces=XHTMLNS
-    # ):
-    #     s.getparent()[
-    #         s.getparent().index(s)-1
-    #     ].tail = s.getparent()[s.getparent().index(s)-1].tail + s.tail
-    #     s.tail = ''
-    #     if s.getparent()[
-    #         s.getparent().index(s)+1
-    #     ].tag == '{http://www.w3.org/1999/xhtml}br':
-    #         s.getparent().insert(s.getparent().index(s), etree.fromstring(
-    #             '<br/>'
-    #         ))
-    #         remove_node(s.getparent()[s.getparent().index(s)+1])
     for s in tree.xpath(
         '//xhtml:div[@class="thumb tleft"]', namespaces=XHTMLNS
     ):
@@ -488,7 +478,6 @@ def write_ncx_opf_entry(doc, docu):
     manifest = opftree.xpath('//opf:manifest', namespaces=OPFNS)[0]
     spine = opftree.xpath('//opf:spine', namespaces=OPFNS)[0]
     nm = ncxtree.xpath('//ncx:navMap', namespaces=NCXNS)[0]
-    # print(docu, doc)
     nm.append(
         etree.fromstring(
             '<navPoint id="text_' + doc + '">'
@@ -627,19 +616,23 @@ def normalize_doc_name(url):
 def load_custom_toc(file):
     toc_titles = []
     nurls = []
+    qixs = []
     if os.path.exists(os.path.join(file)):
         tree = etree.parse(os.path.join(file))
+        # print(etree.tostring(tree))
     else:
         sys.exit('ERROR! Unable to load custom TOC file.')
-    for a in tree.xpath('//a'):
+    for a in tree.xpath('//xhtml:a', namespaces=XHTMLNS):
         toc_titles.append(a.text)
         nurls.append('https://pl.wikisource.org' + a.get('href'))
-    return toc_titles, nurls
+        qixs.append(a.get('class'))
+    # print(toc_titles, nurls, qixs)
+    return toc_titles, nurls, qixs
 
 
 def main():
     if args.toc:
-        toc_titles, nurls = load_custom_toc(args.toc)
+        toc_titles, nurls, qixs = load_custom_toc(args.toc)
     # sys.exit()
     prepare_dir()
     tree = url_to_tree(args.url)
@@ -665,16 +658,16 @@ def main():
         m = tree.xpath('//span[@class="PageNumber"]//a[@title]')[0].get('href')
         m = 'https://pl.wikisource.org' + '/'.join(m.split('/')[:-1]) + \
             '/' + args.title_page
-        print('Using title page from: ' + unquote(m).decode('utf8'))
+        print('Using title page from: ' + unquote(m).decode(SFENC))
         docu = 'Strona tytułowa'
         tree = url_to_tree(m)
     set_text_reference(doc)
     write_dc_data(bauthor, btitle, args.url)
     generate_cover(bauthor, btitle)
     if args.title_page:
-        tree = process_dirty_tree(tree, m)
+        tree = process_dirty_tree(tree, m, None)
     else:
-        tree = process_dirty_tree(tree, args.url)
+        tree = process_dirty_tree(tree, args.url, None)
     download_images(tree, doc)
     string = regex_dirty_tree(tree, doc)
     tree = process_tree(string)
@@ -685,7 +678,6 @@ def main():
     write_text_file(string, doc)
     write_ncx_opf_entry(doc, docu)
     while nurl is not None:
-        print(nurl)
         curl = nurl
         tree = url_to_tree(nurl)
         doc, docu = normalize_doc_name(nurl)
@@ -701,7 +693,7 @@ def main():
             doc = doc + str(ti)
         else:
             nurl = next_url(tree)
-        tree = process_dirty_tree(tree, curl)
+        tree = process_dirty_tree(tree, curl, qixs[ti-1])
         download_images(tree, doc)
         string = regex_dirty_tree(tree, doc)
         tree = process_tree(string)

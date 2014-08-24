@@ -635,6 +635,18 @@ def load_custom_toc(file):
     return toc_titles, nurls, qixs
 
 
+def extract_text(node):
+    s = node.text
+    if s is None:
+        s = ''
+    for child in node:
+        if child.text:
+            s += child.text
+        if child.tail:
+            s += child.tail
+    return s
+
+
 def prepare_custom_toc_tree(url):
     tree = url_to_tree(url)
     try:
@@ -676,40 +688,56 @@ def create_custom_toc(url):
             continue
         toctree2 = prepare_custom_toc_tree('https://pl.wikisource.org' +
                                            a1.get('href'))
+        qc1 = ''
         for a in toctree2.xpath('//a'):
-            if a.get('href').startswith('#'):
+            if (a.get('href').startswith('#') or
+                    a.get('href').startswith('http')):
                 continue
-            a1.set('class', 'qix')
-        a1.tail = ''
+            qc1 = 'qix'
+        tn1 = extract_text(a1)
+        # a1.tail = ''
         # print("#", etree.tostring(a1, encoding='UTF-8'))
-        toc = toc + etree.tostring(a1, encoding='UTF-8') + '\n'
+        toc = toc + \
+            '<a href="%s" class="%s">%s</a>\n' % (
+                a1.get('href'), qc1, tn1.encode('utf8')
+            )
         if toctree2 is None:
             continue
         for a2 in toctree2.xpath('//a'):
-            if a2.get('href').startswith('#'):
+            if (a2.get('href').startswith('#') or
+                    a2.get('href').startswith('http')):
                 continue
             toctree3 = prepare_custom_toc_tree('https://pl.wikisource.org' +
                                                a2.get('href'))
+            qc2 = ''
             for a in toctree3.xpath('//a'):
-                if a.get('href').startswith('#'):
+                if (a.get('href').startswith('#') or
+                        a.get('href').startswith('http')):
                     continue
-                a2.set('class', 'qix')
-            a2.text = u'\xa0\xa0\xa0' + a2.text
-            a2.tail = ''
+                qc2 = 'qix'
+            tn2 = u'\xa0\xa0\xa0' + extract_text(a2)
+            # a2.tail = ''
             # print("##", etree.tostring(a2, encoding='UTF-8'))
-            toc = toc + etree.tostring(a2, encoding='UTF-8') + '\n'
+            toc = toc + \
+                '<a href="%s" class="%s">%s</a>\n' % (
+                    a2.get('href'), qc2, tn2.encode('utf8')
+                )
             if toctree3 is None:
                 continue
             for a3 in toctree3.xpath('//a'):
-                if a3.get('href').startswith('#'):
+                if (a3.get('href').startswith('#') or
+                        a3.get('href').startswith('http')):
                     continue
                 toctree2 = prepare_custom_toc_tree(
                     'https://pl.wikisource.org' + a3.get('href')
                 )
-                a3.text = u'\xa0\xa0\xa0\xa0\xa0\xa0' + a3.text
-                a3.tail = ''
+                tn3 = u'\xa0\xa0\xa0\xa0\xa0\xa0' + extract_text(a3)
+                # a3.tail = ''
                 # print("###", etree.tostring(a3, encoding='UTF-8'))
-                toc = toc + etree.tostring(a3, encoding='UTF-8') + '\n'
+                toc = toc + \
+                    '<a href="%s" class="%s">%s</a>\n' % (a3.get(
+                        'href'
+                    ), '', tn3.encode('utf8'))
     toc = toc + '</html>\n'
     with open(os.path.join("toc.xhtml"), "w") as f:
         f.write(toc)

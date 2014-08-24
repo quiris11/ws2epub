@@ -46,6 +46,9 @@ parser.add_argument("-n", "--no-next",
 parser.add_argument("-o", "--other",
                     help="get other book from WS",
                     action="store_true")
+parser.add_argument("-c", "--create-toc",
+                    help="create TOC file from URL",
+                    action="store_true")
 parser.add_argument("-t", "--toc", nargs='?', metavar='TOC',
                     const='1', help="Load URLs from specified TOC")
 parser.add_argument('-p', '--title-page', nargs='?', metavar='NR',
@@ -293,6 +296,8 @@ def process_dirty_tree(tree, url, qix):
         book = tree.xpath('//div[@class="pagetext"]')[0]
         title = etree.fromstring('<title>Strona tytułowa</title>')
     elif qix is not None:
+        for s in tree.xpath('//sup[@class="reference"]'):
+            remove_node(s)
         book = tree.xpath('//div[@id="mw-content-text"]//div[1]/div[1]')[0]
         title = tree.xpath('//title')[0]
     else:
@@ -630,10 +635,92 @@ def load_custom_toc(file):
     return toc_titles, nurls, qixs
 
 
+def prepare_custom_toc_tree(url):
+    tree = url_to_tree(url)
+    try:
+        toc = tree.xpath(
+            '//div[@id="mw-content-text"]'
+        )[0]
+    except:
+        return None
+    for s in toc.xpath('//div[@class="refsection"]'):
+        remove_node(s)
+    for s in toc.xpath('//h2/*[@id="Przypisy"]'):
+        remove_node(s.getparent())
+    for s in toc.xpath('//a[@class="image"]'):
+        remove_node(s)
+    for s in toc.xpath('//comment()'):
+        remove_node(s)
+    for s in toc.xpath('//a[@href="/wiki/Pomoc:Przypisy"]'):
+        remove_node(s)
+    for s in toc.xpath('//span/span[@class="PageNumber"]'):
+        remove_node(s)
+    for s in tree.xpath('//div[@id="Template_law"]'):
+        remove_node(s)
+    for s in tree.xpath('//table[@class="infobox"]'):
+        remove_node(s)
+    for s in tree.xpath('//span[@class="mw-editsection"]'):
+        remove_node(s)
+    for s in tree.xpath('//div[@class="magnify"]'):
+        remove_node(s)
+    for s in tree.xpath('//noscript'):
+        remove_node(s)
+    return etree.fromstring(etree.tostring(toc))
+
+
+def create_custom_toc(url):
+    toc = '<!DOCTYPE html>\n<html xmlns="http://www.w3.org/1999/xhtml">\n'
+    toctree1 = prepare_custom_toc_tree(url)
+    for a1 in toctree1.xpath('//a'):
+        if a1.get('href').startswith('#'):
+            continue
+        toctree2 = prepare_custom_toc_tree('https://pl.wikisource.org' +
+                                           a1.get('href'))
+        for a in toctree2.xpath('//a'):
+            if a.get('href').startswith('#'):
+                continue
+            a1.set('class', 'qix')
+        a1.tail = ''
+        # print("#", etree.tostring(a1, encoding='UTF-8'))
+        toc = toc + etree.tostring(a1, encoding='UTF-8') + '\n'
+        if toctree2 is None:
+            continue
+        for a2 in toctree2.xpath('//a'):
+            if a2.get('href').startswith('#'):
+                continue
+            toctree3 = prepare_custom_toc_tree('https://pl.wikisource.org' +
+                                               a2.get('href'))
+            for a in toctree3.xpath('//a'):
+                if a.get('href').startswith('#'):
+                    continue
+                a2.set('class', 'qix')
+            a2.text = u'\xa0\xa0\xa0' + a2.text
+            a2.tail = ''
+            # print("##", etree.tostring(a2, encoding='UTF-8'))
+            toc = toc + etree.tostring(a2, encoding='UTF-8') + '\n'
+            if toctree3 is None:
+                continue
+            for a3 in toctree3.xpath('//a'):
+                if a3.get('href').startswith('#'):
+                    continue
+                toctree2 = prepare_custom_toc_tree(
+                    'https://pl.wikisource.org' + a3.get('href')
+                )
+                a3.text = u'\xa0\xa0\xa0\xa0\xa0\xa0' + a3.text
+                a3.tail = ''
+                # print("###", etree.tostring(a3, encoding='UTF-8'))
+                toc = toc + etree.tostring(a3, encoding='UTF-8') + '\n'
+    toc = toc + '</html>\n'
+    with open(os.path.join("toc.xhtml"), "w") as f:
+        f.write(toc)
+
+
 def main():
+    if args.create_toc:
+        create_custom_toc(args.url)
+        sys.exit()
     if args.toc:
         toc_titles, nurls, qixs = load_custom_toc(args.toc)
-    # sys.exit()
     prepare_dir()
     tree = url_to_tree(args.url)
     bauthor, btitle, all_url = get_dc_data(tree)

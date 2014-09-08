@@ -292,10 +292,12 @@ def next_url2(tree):
 
 
 def process_dirty_tree(tree, url, qix):
+    # print('#', qix)
     if 'Strona:' in url:
         book = tree.xpath('//div[@class="pagetext"]')[0]
         title = etree.fromstring('<title>Strona tytułowa</title>')
-    elif qix is not None:
+    elif qix is not None and qix != '':
+        # print('bla!')
         for s in tree.xpath('//sup[@class="reference"]'):
             remove_node(s)
         book = tree.xpath('//div[@id="mw-content-text"]//div[1]/div[1]')[0]
@@ -806,9 +808,10 @@ def main():
                 nurl = None
             docu = toc_titles[ti-1]
             doc = doc + str(ti)
+            tree = process_dirty_tree(tree, curl, qixs[ti-1])
         else:
             nurl = next_url(tree)
-        tree = process_dirty_tree(tree, curl, qixs[ti-1])
+            tree = process_dirty_tree(tree, curl, None)
         download_images(tree, doc)
         string = regex_dirty_tree(tree, doc)
         tree = process_tree(string)

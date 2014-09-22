@@ -104,6 +104,8 @@ def get_dc_data(tree):
             )[0].text
         except:
             sys.exit('ERROR! Unable to find book author!')
+    else:
+            bauthor = 'Autorzy różni'
     if tree.xpath(
         '//table[@class="infobox"]/tr[3]/td[1]'
     )[0].text == u'Tytuł':

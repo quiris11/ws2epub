@@ -89,32 +89,38 @@ def prepare_dir():
 
 
 def get_dc_data(tree):
+    all_url = None
     for a in tree.xpath('//table[@class="infobox"]//a[@title]'):
         if 'całość' in a.get('title').encode('utf8').lower():
             all_url = a.get('href')
             break
+    try:
+        if tree.xpath(
+            '//table[@class="infobox"]/tr[2]/td[1]'
+        )[0].text == 'Autor':
+            try:
+                bauthor = tree.xpath(
+                    '//table[@class="infobox"]/tr[2]/td[2]/a'
+                )[0].text
+            except:
+                sys.exit('ERROR! Unable to find book author!')
         else:
-            all_url = None
-    if tree.xpath(
-        '//table[@class="infobox"]/tr[2]/td[1]'
-    )[0].text == 'Autor':
-        try:
-            bauthor = tree.xpath(
-                '//table[@class="infobox"]/tr[2]/td[2]/a'
-            )[0].text
-        except:
-            sys.exit('ERROR! Unable to find book author!')
-    else:
-            bauthor = 'Autorzy różni'
-    if tree.xpath(
-        '//table[@class="infobox"]/tr[3]/td[1]'
-    )[0].text == u'Tytuł':
-        try:
-            btitle = tree.xpath(
-                '//table[@class="infobox"]/tr[3]/td[2]'
-            )[0].text
-        except:
-            sys.exit('ERROR! Unable to find book title!')
+                bauthor = 'Autorzy różni'
+    except:
+        bauthor = 'Autor nieznany'.decode('utf8')
+
+    try:
+        if tree.xpath(
+            '//table[@class="infobox"]/tr[3]/td[1]'
+        )[0].text == u'Tytuł':
+            try:
+                btitle = tree.xpath(
+                    '//table[@class="infobox"]/tr[3]/td[2]'
+                )[0].text
+            except:
+                sys.exit('ERROR! Unable to find book title!')
+    except:
+        btitle = 'Tytuł nieznany'.decode('utf-8')
     return bauthor, btitle, all_url
 
 

@@ -816,7 +816,10 @@ def main():
                 nurl = None
             docu = toc_titles[ti-1]
             doc = doc + str(ti)
-            tree = process_dirty_tree(tree, curl, qixs[ti-1])
+            if args.toc:
+                tree = process_dirty_tree(tree, curl, qixs[ti-1])
+            else:
+                tree = process_dirty_tree(tree, curl, None)
         else:
             nurl = next_url(tree)
             tree = process_dirty_tree(tree, curl, None)

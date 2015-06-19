@@ -26,6 +26,7 @@ from StringIO import StringIO
 from urllib import unquote
 from urllib import urlretrieve
 from cover import DefaultEbookCover
+import ssl
 
 
 from lxml import etree
@@ -236,10 +237,12 @@ def set_text_reference(doc):
 def url_to_tree(url):
     print('Processing: ' + unquote(url).decode(SFENC))
     try:
-        content = urllib2.urlopen(url).read()
+        context = ssl._create_unverified_context()
+        content = urllib2.urlopen(url, context=context).read()
     except Exception, e:
         print('ERROR! Unable to get content from url. Problem code: ' + str(e))
         sys.exit()
+    # print(content)
     content = content.replace('&#160;', ' ')
     content = content.replace('&lrm;', ' ')
     content = re.sub(r'(\s+[a-z0-9]+)=([\'|\"]{0})([a-z0-9]+)([\'|\"]{0})',
@@ -354,8 +357,10 @@ def process_dirty_tree(tree, url, qix):
 
     for s in tree.xpath('//hr'):
         try:
-            s.attrib['style'] = 'width: ' + str(int(s.attrib['width'])/4) + \
-                '%; margin-left:' + str((100-int(s.attrib['width'])/4)/2) + '%'
+            s.attrib['style'] = 'width: ' + str(int(s.attrib['width']) / 4) + \
+                '%; margin-left:' + str((100 - int(
+                    s.attrib['width']
+                ) / 4) / 2) + '%'
             del s.attrib['width']
         except:
             pass
@@ -403,18 +408,18 @@ def process_tree(string):
     for s in tree.xpath(
         '//xhtml:div[@class="thumb tleft"]', namespaces=XHTMLNS
     ):
-        if s.getparent()[s.getparent().index(s)-1].tail is not None:
+        if s.getparent()[s.getparent().index(s) - 1].tail is not None:
             s.getparent()[
-                s.getparent().index(s)-1
-            ].tail = s.getparent()[s.getparent().index(s)-1].tail + s.tail
+                s.getparent().index(s) - 1
+            ].tail = s.getparent()[s.getparent().index(s) - 1].tail + s.tail
             s.tail = ''
         if s.getparent()[
-            s.getparent().index(s)+1
+            s.getparent().index(s) + 1
         ].tag == '{http://www.w3.org/1999/xhtml}br':
             s.getparent().insert(s.getparent().index(s), etree.fromstring(
                 '<br/>'
             ))
-            remove_node(s.getparent()[s.getparent().index(s)+1])
+            remove_node(s.getparent()[s.getparent().index(s) + 1])
     return tree
 
 
@@ -814,10 +819,10 @@ def main():
                 nurl = nurls[ti]
             else:
                 nurl = None
-            docu = toc_titles[ti-1]
+            docu = toc_titles[ti - 1]
             doc = doc + str(ti)
             if args.toc:
-                tree = process_dirty_tree(tree, curl, qixs[ti-1])
+                tree = process_dirty_tree(tree, curl, qixs[ti - 1])
             else:
                 tree = process_dirty_tree(tree, curl, None)
         else:

@@ -102,12 +102,13 @@ def get_dc_data(tree):
         )[0].text
     except:
         bauthor = 'Autor nieznany'.decode('utf8')
-    try:
-        btitle = tree.xpath(
-            '//span[@id="ws-title"]'
-        )[0].text
-    except:
-        btitle = 'Tytuł nieznany'.decode('utf-8')
+    # try:
+    btitle = ''.join(tree.xpath(
+        '//span[@id="ws-title"]'
+    )[0].itertext())
+    btitle = btitle.replace('\n', ' ')
+    # except:
+    #     btitle = 'Tytuł nieznany'.decode('utf-8')
     return bauthor, btitle, all_url
 
 

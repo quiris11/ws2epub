@@ -773,6 +773,7 @@ def main():
     tree = url_to_tree(args.url)
     bauthor, btitle, all_url = get_dc_data(tree)
     doc, docu = normalize_doc_name(args.url)
+    tree = write_law(tree)
     ti = 0
     if args.toc:
         docu = 'Strona tytułowa'
@@ -819,8 +820,6 @@ def main():
         tree = url_to_tree(nurl)
         doc, docu = normalize_doc_name(nurl)
         ti += 1
-        if ti == 1:
-            tree = write_law(tree)
         if args.toc:
             if ti < len(nurls):
                 nurl = nurls[ti]

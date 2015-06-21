@@ -24,9 +24,11 @@ visibility: hidden;
 text-align:center;
 }
 
+/* Disabled due ADE 4 crashes
 .poem,.center,.poem *,.center *,table {
 margin:0 auto;
 }
+*/
 
 .poem  {
 display: table;

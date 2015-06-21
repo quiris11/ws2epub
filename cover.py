@@ -132,12 +132,12 @@ class Cover(object):
     exts = {
         'JPEG': 'jpg',
         'PNG': 'png',
-        }
+    }
 
     mime_types = {
         'JPEG': 'image/jpeg',
         'PNG': 'image/png',
-        }
+    }
 
     def __init__(self, bauthor, btitle, format=None, width=None, height=None):
         self.author = bauthor
@@ -173,7 +173,7 @@ class Cover(object):
         tbox = TextBox(
             metr.width - metr.author_margin_left - metr.author_margin_right,
             metr.height - top,
-            )
+        )
 
         author_font = ImageFont.truetype(
             self.author_font_ttf, metr.author_font_size)
@@ -186,7 +186,7 @@ class Cover(object):
         tbox = TextBox(
             metr.width - metr.title_margin_left - metr.title_margin_right,
             metr.height - top,
-            )
+        )
         title_font = ImageFont.truetype(
             self.title_font_ttf, metr.title_font_size)
         tbox.text(self.pretty_title(), self.title_color, title_font,

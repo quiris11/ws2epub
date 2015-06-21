@@ -24,7 +24,6 @@ import unicodedata
 import shutil
 from StringIO import StringIO
 from urllib import unquote
-from urllib import urlretrieve
 from cover import DefaultEbookCover
 import ssl
 
@@ -91,35 +90,22 @@ def prepare_dir():
 
 def get_dc_data(tree):
     all_url = None
-    for a in tree.xpath('//table[@class="infobox"]//a[@title]'):
+    for a in tree.xpath(
+        '//table[contains(concat(" ", @class, " "), " infobox ")]//a[@title]'
+    ):
         if 'całość' in a.get('title').encode('utf8').lower():
             all_url = a.get('href')
             break
     try:
-        if tree.xpath(
-            '//table[@class="infobox"]/tr[2]/td[1]'
-        )[0].text == 'Autor':
-            try:
-                bauthor = tree.xpath(
-                    '//table[@class="infobox"]/tr[2]/td[2]/a'
-                )[0].text
-            except:
-                sys.exit('ERROR! Unable to find book author!')
-        else:
-                bauthor = 'Autorzy różni'
+        bauthor = tree.xpath(
+            '//span[@id="ws-author"]/a[1]'
+        )[0].text
     except:
         bauthor = 'Autor nieznany'.decode('utf8')
-
     try:
-        if tree.xpath(
-            '//table[@class="infobox"]/tr[3]/td[1]'
-        )[0].text == u'Tytuł':
-            try:
-                btitle = tree.xpath(
-                    '//table[@class="infobox"]/tr[3]/td[2]'
-                )[0].text
-            except:
-                sys.exit('ERROR! Unable to find book title!')
+        btitle = tree.xpath(
+            '//span[@id="ws-title"]'
+        )[0].text
     except:
         btitle = 'Tytuł nieznany'.decode('utf-8')
     return bauthor, btitle, all_url
@@ -182,7 +168,7 @@ def write_law(tree):
     parser = etree.XMLParser(remove_blank_text=True)
     infotree = etree.parse(os.path.join('WSepub/OPS/Text/info.xhtml'), parser)
     for s in tree.xpath(
-        '//div[@id="Template_law"]/div/div[@style="float: left;"]'
+        '//div[@id="Template_law"]/div/div[@style="float:left"]'
     ):
         remove_node(s)
     for l in tree.xpath('//div[@id="Template_law"]'):
@@ -245,6 +231,7 @@ def url_to_tree(url):
     # print(content)
     content = content.replace('&#160;', ' ')
     content = content.replace('&lrm;', ' ')
+    content = content.replace('Szablon:---', '')
     content = re.sub(r'(\s+[a-z0-9]+)=([\'|\"]{0})([a-z0-9]+)([\'|\"]{0})',
                      r'\1="\3"',
                      content)
@@ -252,6 +239,7 @@ def url_to_tree(url):
 
 
 def download_images(tree, url):
+    context = ssl._create_unverified_context()
     doc = url.split('/')[-1]
     num = 1
     parser = etree.XMLParser(remove_blank_text=True)
@@ -265,9 +253,12 @@ def download_images(tree, url):
             mime = 'image/png'
         else:
             sys.exit('ERROR! Unrecognized image extension: ' + filext)
-        urlretrieve('https:' + i.get('src'), os.path.join(
+        url = 'https:' + i.get('src')
+        target = os.path.join(
             'WSepub', 'OPS', 'Images', 'img_' + doc + '_' + str(num) + filext
-        ))
+        )
+        with open(target, 'w') as f:
+            f.write(urllib2.urlopen(url, context=context).read())
         i.attrib['src'] = '../Images/img_' + doc + '_' + str(num) + filext
         opfitem = etree.fromstring(
             '<item id="img_%s_%s" href="Images/img_%s_%s%s" media-'
@@ -281,7 +272,10 @@ def download_images(tree, url):
 
 def next_url(tree):
     nurl = None
-    for s in tree.xpath('//table[@class="infobox"]/tr[1]/td[1]//a[@href]'):
+    for s in tree.xpath(
+        '//table[contains(concat(" ", @class, " "), '
+        '" infobox ")]/tr[1]/td[1]//a[@href]'
+    ):
         if s.text == '>>>':
             nurl = 'https://pl.wikisource.org' + s.get('href')
     return nurl
@@ -289,13 +283,15 @@ def next_url(tree):
 
 def next_url2(tree):
     nurl = None
-    for s in tree.xpath('//table[@class="infobox"]'):
+    for s in tree.xpath(
+        '//table[contains(concat(" ", @class, " "), " infobox ")]'
+    ):
         remove_node(s)
     for s in tree.xpath('//div[@id="mw-content-text"]//a[@href]'):
         if ":" in s.get('href'):
             continue
         nurl = 'https://pl.wikisource.org' + s.get('href')
-        print(nurl)
+        print('Next URL: ' + nurl)
         break
     for s in tree.xpath('//div[@id="mw-content-text"]//a[@href]'):
         remove_node(s)
@@ -330,13 +326,17 @@ def process_dirty_tree(tree, url, qix):
     tree.xpath('//body')[0].append(book)
     for s in tree.xpath('//div[@id="Template_law"]'):
         remove_node(s)
-    for s in tree.xpath('//table[@class="infobox"]'):
+    for s in tree.xpath(
+        '//table[contains(concat(" ", @class, " "), " infobox ")]'
+    ):
         remove_node(s)
     for s in tree.xpath('//comment()'):
         remove_node(s)
     for s in tree.xpath('//a[@href="/wiki/Pomoc:Przypisy"]'):
         remove_node(s)
-    for s in tree.xpath('//span/span[@class="PageNumber"]'):
+    for s in tree.xpath(
+        '//span/span[contains(concat(" ", @class, " "), " PageNumber ")]'
+    ):
         remove_node(s)
     for s in tree.xpath('//span[@class="mw-editsection"]'):
         remove_node(s)
@@ -680,11 +680,15 @@ def prepare_custom_toc_tree(url):
         remove_node(s)
     for s in toc.xpath('//a[@href="/wiki/Pomoc:Przypisy"]'):
         remove_node(s)
-    for s in toc.xpath('//span/span[@class="PageNumber"]'):
+    for s in toc.xpath(
+        '//span/span[contains(concat(" ", @class, " "), " PageNumber ")]'
+    ):
         remove_node(s)
     for s in tree.xpath('//div[@id="Template_law"]'):
         remove_node(s)
-    for s in tree.xpath('//table[@class="infobox"]'):
+    for s in tree.xpath(
+        '//table[contains(concat(" ", @class, " "), " infobox ")]'
+    ):
         remove_node(s)
     for s in tree.xpath('//span[@class="mw-editsection"]'):
         remove_node(s)
@@ -785,7 +789,10 @@ def main():
         tree = split_hr(tree)
     else:
         tree = url_to_tree(args.url)
-        m = tree.xpath('//span[@class="PageNumber"]//a[@title]')[0].get('href')
+        m = tree.xpath(
+            '//span[contains(concat(" ", @class, " "), " PageNumber ")]'
+            '//a[@title]'
+        )[0].get('href')
         m = 'https://pl.wikisource.org' + '/'.join(m.split('/')[:-1]) + \
             '/' + args.title_page
         print('Using title page from: ' + unquote(m).decode(SFENC))

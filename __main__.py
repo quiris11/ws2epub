@@ -40,19 +40,11 @@ NCXNS = {'ncx': 'http://www.daisy.org/z3986/2005/ncx/'}
 parser = argparse.ArgumentParser()
 parser.add_argument('-V', '--version', action='version',
                     version="%(prog)s (version " + __version__ + ")")
-parser.add_argument("-n", "--no-next",
-                    help="get book without next link",
-                    action="store_true")
-parser.add_argument("-o", "--other",
-                    help="get other book from WS",
-                    action="store_true")
 parser.add_argument("-c", "--create-toc",
                     help="create TOC file from URL",
                     action="store_true")
 parser.add_argument("-t", "--toc", nargs='?', metavar='TOC',
                     const='1', help="Load URLs from specified TOC")
-parser.add_argument('-p', '--title-page', nargs='?', metavar='NR',
-                    const='1', help='Number of index page with title page')
 parser.add_argument("url", help="URL to WS book or TXT file with URLs")
 args = parser.parse_args()
 

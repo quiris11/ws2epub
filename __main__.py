@@ -780,44 +780,61 @@ def main():
         nurl = nurls[ti]
     else:
         nurl = next_url(tree)
-    if nurl is None and args.no_next:
-        nurl = next_url2(tree)
-    if not args.title_page:
-        if all_url and not args.no_next:
-            tree = get_title_page_tree(all_url)
-        else:
-            tree = insert_hr_before_static(tree)
-        tree = split_hr(tree)
-    else:
-        tree = url_to_tree(args.url)
-        m = tree.xpath(
+    if nurl is None:
+        nurl = args.url
+    page_nrs = tree.xpath(
+        '//table[@style="margin-left:auto;margin-right:auto;"][1]'
+        '//span[contains(concat(" ", @class, " "), " PageNumber ")]'
+        '//a[@title]'
+    )
+    if len(page_nrs) == 0:
+        page_nrs = tree.xpath(
+            '//div[@class="center"][1]'
             '//span[contains(concat(" ", @class, " "), " PageNumber ")]'
             '//a[@title]'
-        )[0].get('href')
-        m = 'https://pl.wikisource.org' + '/'.join(m.split('/')[:-1]) + \
-            '/' + args.title_page
+        )
+    if len(page_nrs) == 0:
+        page_nrs = tree.xpath(
+            '//center[1]'
+            '//span[contains(concat(" ", @class, " "), " PageNumber ")]'
+            '//a[@title]'
+        )
+    tcount = 0
+    for a in page_nrs:
+        tcount += 1
+        m = 'https://pl.wikisource.org' + a.get('href')
         print('Using title page from: ' + unquote(m).decode(SFENC))
-        docu = 'Strona tytułowa'
+        docu = 'Strona tytułowa ' + str(tcount)
+        doc = str(tcount) + doc
         tree = url_to_tree(m)
-    set_text_reference(doc)
-    write_dc_data(bauthor, btitle, args.url)
-    generate_cover(bauthor, btitle)
-    if args.title_page:
         tree = process_dirty_tree(tree, m, None)
-    else:
-        tree = process_dirty_tree(tree, args.url, None)
-    download_images(tree, doc)
-    string = regex_dirty_tree(tree, doc)
-    tree = process_tree(string)
-    tree = replace_align_attribute(tree)
-    tree = replace_width_attribute(tree)
-    tree = replace_font_tag(tree)
-    string = regex_tree(tree)
-    write_text_file(string, doc)
-    write_ncx_opf_entry(doc, docu)
+        download_images(tree, doc)
+        string = regex_dirty_tree(tree, doc)
+        tree = process_tree(string)
+        tree = replace_align_attribute(tree)
+        tree = replace_width_attribute(tree)
+        tree = replace_font_tag(tree)
+        string = regex_tree(tree)
+        write_text_file(string, doc)
+        write_ncx_opf_entry(doc, docu)
     while nurl is not None:
         curl = nurl
         tree = url_to_tree(nurl)
+        if nurl == args.url:
+            try:
+                remove_node(tree.xpath(
+                    '//table[@style="margin-left:auto;margin-right:auto;"]'
+                )[0])
+            except:
+                pass
+            try:
+                remove_node(tree.xpath('//div[@class="center"]/table')[0])
+            except:
+                pass
+            try:
+                remove_node(tree.xpath('//hr')[0])
+            except:
+                pass
         doc, docu = normalize_doc_name(nurl)
         ti += 1
         if args.toc:

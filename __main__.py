@@ -181,25 +181,6 @@ def write_law(tree):
     return tree
 
 
-def split_hr(tree):
-    for s in tree.xpath('//hr'):
-        try:
-            s.attrib['class'] = 'wsrozdzial'
-        except:
-            pass
-    for s in tree.xpath('//table//hr'):
-        try:
-            del s.attrib['class']
-        except:
-            pass
-    try:
-        tree.xpath('//hr')[-1].attrib['class'] = 'hidden'
-    except:
-        print('Warning! No HR on title page.')
-        pass
-    return tree
-
-
 def set_text_reference(doc):
     parser = etree.XMLParser(remove_blank_text=True)
     opftree = etree.parse(os.path.join('WSepub/OPS/content.opf'), parser)

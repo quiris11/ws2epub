@@ -202,7 +202,6 @@ def url_to_tree(url):
     except Exception, e:
         print('ERROR! Unable to get content from url. Problem code: ' + str(e))
         sys.exit()
-    # print(content)
     content = content.replace('&#160;', ' ')
     content = content.replace('&lrm;', ' ')
     content = content.replace('Szablon:---', '')
@@ -273,12 +272,10 @@ def next_url2(tree):
 
 
 def process_dirty_tree(tree, url, qix):
-    # print('#', qix)
     if 'Strona:' in url:
         book = tree.xpath('//div[@class="pagetext"]')[0]
         title = etree.fromstring('<title>Strona tytułowa</title>')
     elif qix is not None and qix != '':
-        # print('bla!')
         for s in tree.xpath('//sup[@class="reference"]'):
             remove_node(s)
         book = tree.xpath('//div[@id="mw-content-text"]//div[1]/div[1]')[0]

@@ -745,8 +745,11 @@ def main():
     prepare_dir()
     tree = url_to_tree(args.url)
     bauthor, btitle, all_url = get_dc_data(tree)
-    doc, docu = normalize_doc_name(args.url)
+    write_dc_data(bauthor, btitle, args.url)
+    generate_cover(bauthor, btitle)
     tree = write_law(tree)
+    doc, docu = normalize_doc_name(args.url)
+    set_text_reference(doc)
     ti = 0
     if args.toc:
         docu = 'Strona tytułowa'

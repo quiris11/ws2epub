@@ -772,6 +772,12 @@ def main():
             '//span[contains(concat(" ", @class, " "), " PageNumber ")]'
             '//a[@title]'
         )
+    if len(page_nrs) == 0:
+        page_nrs = tree.xpath(
+            '//table[@align="center"][1]'
+            '//span[contains(concat(" ", @class, " "), " PageNumber ")]'
+            '//a[@title]'
+        )
     tcount = 0
     for a in page_nrs:
         tcount += 1

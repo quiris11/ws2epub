@@ -301,7 +301,7 @@ def process_dirty_tree(tree, url, qix):
     for s in tree.xpath('//div[@id="Template_law"]'):
         remove_node(s)
     for s in tree.xpath(
-        '//table[contains(concat(" ", @class, " "), " infobox ")]'
+        '//*[contains(concat(" ", @class, " "), " ws-noexport ")]'
     ):
         remove_node(s)
     for s in tree.xpath('//comment()'):
